@@ -1,0 +1,5 @@
+# Ideation Board
+
+Miro board: https://miro.com/welcomeonboard/eGNaQTFnbGlHSzJxanlReHFRa1ozQUo5SzFoK0xYNVkxTFBPL0k2ZUZ5b3Qxb0d6anNnY3JlbC9uRnNaVjFpWTlGNkRwd1RLUy9Ddi9LWFJlaFN2WGJkdFVSSWpMT2puVWFHYW9sdTgzMEYrK3pCeEJoQnpTRUtYdktvRng1M0dBS2NFMDFkcUNFSnM0d3FEN050ekl3PT0hdjE=?share_link_id=927679578359
+
+Covers: problem statement, target users, four core MVP features, user flow, and cut/future features.
