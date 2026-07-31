@@ -44,7 +44,7 @@ def process_clothing_upload(image_path: str, output_dir: str = "processed"):
 
 
 if __name__ == "__main__":
-    result = process_clothing_upload("test_images/sample_shirt.jpg")
+    result = process_clothing_upload("test_images/sample_shirtt.jpg")
     print("Pipeline result:")
     for key, value in result.items():
         print(f"  {key}: {value}")
