@@ -1,0 +1,54 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-cream text-ink font-sans antialiased;
+  margin: 0;
+}
+
+/* Checkerboard so transparent (background-removed) PNGs read clearly. */
+.checker {
+  background-image:
+    linear-gradient(45deg, #ece4d8 25%, transparent 25%),
+    linear-gradient(-45deg, #ece4d8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ece4d8 75%),
+    linear-gradient(-45deg, transparent 75%, #ece4d8 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.35s ease both;
+}
+
+/* Thin, unobtrusive scrollbars for the chat panel. */
+.scroll-slim::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  @apply bg-sand rounded-full;
+}
