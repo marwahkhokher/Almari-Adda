@@ -109,3 +109,19 @@ def get_catalogue():
     """
     result = supabase.table("items").select("*").execute()
     return {"items": result.data}
+
+@app.post("/outfit-suggest")
+def outfit_suggest():
+    """
+    Returns valid outfit combinations from the catalogue,
+    filtered by category completeness, formality compatibility,
+    and color compatibility.
+    """
+    from app.outfit_matching import get_valid_outfits
+
+    result = supabase.table("items").select("*").execute()
+    items = result.data
+
+    outfits = get_valid_outfits(items)
+
+    return {"outfits": outfits}
