@@ -7,6 +7,8 @@ from supabase import create_client, Client
 
 from app.ml.pipeline import process_clothing_upload
 
+from app.chatbot.router import router as chatbot_router
+
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -29,6 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(chatbot_router)
 
 @app.get("/")
 def root():
