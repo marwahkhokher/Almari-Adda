@@ -12,6 +12,7 @@ from app.chatbot.catalogue_client import fetch_catalogue
 from app.chatbot.graph.state import ChatbotState
 from app.chatbot.groq_client import groq_client
 from app.chatbot.schemas import ClothingItem, OutfitSuggestion
+from app.chatbot.outfit_engine_client import fetch_outfit_suggestions
 
 logger = logging.getLogger(__name__)
 
@@ -26,22 +27,23 @@ Given the user's message, respond with ONLY a JSON object (no other text):
 
 User message: "{message}"
 """
+_EXPLAIN_PROMPT = """You are an expert AI fashion stylist. A rule-based outfit 
+matching engine has already selected the following outfit for the occasion 
+"{occasion}"{color_note}:
 
-_STYLING_PROMPT = """You are an expert AI fashion stylist. Using the wardrobe
-items below, recommend one complete outfit for the occasion "{occasion}"
-{color_note}. Explain WHY you chose each item in 2-3 sentences.
+{outfit_json}
 
-Wardrobe items (JSON):
-{items_json}
+Write a warm, personalized 2-3 sentence explanation of why this combination 
+works well for the occasion, referencing the specific items. If the outfit 
+list is empty, explain clearly that no suitable outfit could be assembled 
+and mention what's missing.
 
 Respond in this JSON format only:
 {{
-  "item_ids": [list of chosen item ids],
   "reasoning": "explanation text",
   "confidence_score": float between 0 and 1
 }}
 """
-
 
 async def parse_intent(state: ChatbotState) -> ChatbotState:
     """Use Groq to extract structured intent from the raw user message."""
@@ -96,31 +98,70 @@ def retrieve_relevant_items(state: ChatbotState) -> ChatbotState:
 
 
 async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
-    """Ask Groq to pick and justify an outfit from the relevant items."""
+    """
+    Fetch outfit picks from P2's rule-based engine (source of truth for
+    selection), then use Groq purely to explain/personalize the result
+    in natural language. Does not re-decide item selection itself.
+    """
     if state.get("error"):
         return {}
 
-    items = state["relevant_items"]
-    if not items:
-        return {"outfit_suggestions": [], "error": "Your wardrobe is empty right now."}
+    try:
+        raw_outfits = await fetch_outfit_suggestions()
+    except Exception as e:
+        logger.error("Fetching outfit suggestions failed: %s", e)
+        return {"outfit_suggestions": [], "error": "I couldn't reach the outfit matching engine right now."}
 
-    items_json = json.dumps(
-        [{"id": i.id, "category": i.category, "subcategory": i.subcategory,
-          "color": i.color, "formality": i.formality} for i in items]
-    )
     occasion = state.get("occasion") or "everyday wear"
-    color_note = f"using only {state['color_constraint']} items" if state.get("color_constraint") else ""
+    color_constraint = state.get("color_constraint")
+    color_note = f", using only {color_constraint} items" if color_constraint else ""
 
-    prompt = _STYLING_PROMPT.format(
-        occasion=occasion, color_note=color_note, items_json=items_json
+    # Filter P2's outfits by color constraint if the user asked for one.
+    # Relies on P2's item color field if present; falls back to enriched
+    # items' colors via id lookup if P2 doesn't include color itself.
+    filtered_outfits = raw_outfits
+    if color_constraint:
+        enriched_by_id = {i.id: i for i in state.get("relevant_items", [])}
+
+        def _matches_color(outfit: dict) -> bool:
+            for slot in ("top", "bottom", "item"):
+                piece = outfit.get(slot)
+                if not piece:
+                    continue
+                enriched = enriched_by_id.get(piece.get("id"))
+                if enriched and enriched.color and color_constraint.lower() in enriched.color.lower():
+                    return True
+            return False
+
+        filtered_outfits = [o for o in raw_outfits if _matches_color(o)] or []
+
+    if not filtered_outfits:
+        chosen_items: List[ClothingItem] = []
+    else:
+        top_outfit = filtered_outfits[0]
+        chosen_items = []
+        for slot in ("top", "bottom", "item"):
+            piece = top_outfit.get(slot)
+            if piece:
+                chosen_items.append(
+                    ClothingItem(
+                        id=piece.get("id", ""),
+                        category=piece.get("category", ""),
+                        subcategory=piece.get("subcategory"),
+                        confidence=piece.get("confidence"),
+                        image_url=piece.get("image_url", ""),
+                    )
+                )
+
+    prompt = _EXPLAIN_PROMPT.format(
+        occasion=occasion,
+        color_note=color_note,
+        outfit_json=json.dumps(filtered_outfits[:1] if filtered_outfits else []),
     )
 
     try:
         raw = await groq_client.complete_text(prompt)
         parsed = json.loads(raw)
-        chosen_ids = set(parsed.get("item_ids", []))
-        chosen_items: List[ClothingItem] = [i for i in items if i.id in chosen_ids]
-
         suggestion = OutfitSuggestion(
             items=chosen_items,
             reasoning=parsed.get("reasoning", ""),
@@ -128,9 +169,8 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
         )
         return {"outfit_suggestions": [suggestion]}
     except Exception as e:
-        logger.error("Outfit generation failed: %s", e)
-        return {"outfit_suggestions": [], "error": "I had trouble putting an outfit together."}
-
+        logger.error("Outfit explanation generation failed: %s", e)
+        return {"outfit_suggestions": [], "error": "I had trouble explaining the outfit suggestion."}
 
 def format_response(state: ChatbotState) -> ChatbotState:
     """Build the final reply text shown to the user."""
