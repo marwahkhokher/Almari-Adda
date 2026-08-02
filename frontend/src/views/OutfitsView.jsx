@@ -56,6 +56,16 @@ export default function OutfitsView({ onVisualize }) {
         </div>
       )}
 
+      {outfits && outfits.length === 0 && !loading && (
+        <div className="rounded-2xl border border-dashed border-sand bg-white/60 p-12 text-center">
+          <div className="text-5xl">🤔</div>
+          <p className="mx-auto mt-3 max-w-sm text-sm text-ink/60">
+            No valid combinations from your current closet. Try adding items in
+            different colors or a matching top and bottom.
+          </p>
+        </div>
+      )}
+
       {outfits && outfits.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {outfits.map((o, i) => (
