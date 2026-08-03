@@ -1,48 +1,60 @@
-import { useState } from "react";
-import Nav from "./components/Nav";
-import { ToastProvider } from "./components/Toast";
-import { CatalogueProvider } from "./store/CatalogueContext";
-import ClosetView from "./views/ClosetView";
-import UploadView from "./views/UploadView";
-import OutfitsView from "./views/OutfitsView";
-import VisualizeView from "./views/VisualizeView";
-import ChatView from "./views/ChatView";
-import { API_BASE } from "./config";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './contexts/AuthContext.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
+import SplashScreen from './pages/SplashScreen.jsx'
+import AuthScreen from './pages/AuthScreen.jsx'
+import GenderSelectScreen from './pages/GenderSelectScreen.jsx'
+import DashboardScreen from './pages/DashboardScreen.jsx'
+import UploadScreen from './pages/UploadScreen.jsx'
+import ClosetScreen from './pages/ClosetScreen.jsx'
+import ChatbotScreen from './pages/ChatbotScreen.jsx'
+import VisualizeScreen from './pages/VisualizeScreen.jsx'
 
-export default function App() {
-  const [tab, setTab] = useState("closet");
-  // Outfit handed from Outfits/Stylist to the Visualize view.
-  const [pendingOutfit, setPendingOutfit] = useState(null);
-
-  function visualize(outfit) {
-    setPendingOutfit(outfit);
-    setTab("visualize");
-  }
+function AppRoutes() {
+  const { user, loading } = useAuth()
 
   return (
-    <ToastProvider>
-      <CatalogueProvider>
-        <div className="flex min-h-full flex-col">
-          <Nav active={tab} onChange={setTab} />
+    <Routes>
+      {/* Public routes */}
+      <Route path="/" element={<SplashScreen />} />
+      <Route
+        path="/auth"
+        element={
+          !loading && user ? <Navigate to="/dashboard" replace /> : <AuthScreen />
+        }
+      />
 
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-            {tab === "closet" && <ClosetView onAddClick={() => setTab("add")} />}
-            {tab === "add" && <UploadView onDone={() => setTab("closet")} />}
-            {tab === "outfits" && <OutfitsView onVisualize={visualize} />}
-            {tab === "visualize" && (
-              <VisualizeView initialOutfit={pendingOutfit} />
-            )}
-            {tab === "stylist" && <ChatView onVisualize={visualize} />}
-          </main>
+      {/* Gender select — accessible if logged in but no gender set */}
+      <Route
+        path="/gender-select"
+        element={
+          !loading && !user ? (
+            <Navigate to="/auth" replace />
+          ) : (
+            <GenderSelectScreen />
+          )
+        }
+      />
 
-          <footer className="border-t border-sand px-4 py-3 text-center text-xs text-ink/40">
-            Almari-Adda · connected to{" "}
-            <code className="rounded bg-sand px-1 py-0.5 text-ink/60">
-              {API_BASE}
-            </code>
-          </footer>
-        </div>
-      </CatalogueProvider>
-    </ToastProvider>
-  );
+      {/* Protected routes — require auth + gender */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/dashboard" element={<DashboardScreen />} />
+        <Route path="/upload" element={<UploadScreen />} />
+        <Route path="/closet" element={<ClosetScreen />} />
+        <Route path="/chatbot" element={<ChatbotScreen />} />
+        <Route path="/visualize" element={<VisualizeScreen />} />
+      </Route>
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  )
 }

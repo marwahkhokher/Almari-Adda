@@ -1,55 +1,16 @@
-# Almari-Adda — Frontend
+# React + Vite
 
-React (Vite + Tailwind) frontend for the Almari-Adda virtual closet.
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-## Features
+Currently, two official plugins are available:
 
-| Screen | What it does | Backend endpoint |
-|---|---|---|
-| **Closet** | Grid of catalogued items, category filters, transparent-cutout tiles | `GET /catalogue` |
-| **Add Item** | Camera capture + file/drag-drop upload, live tagging result with confidence | `POST /upload` |
-| **Outfits** | Rule-matched outfit combinations (color / formality / completeness) | `POST /outfit-suggest` |
-| **Visualize** | Layer item cutouts onto a mannequin silhouette (rendered client-side) | — (frontend only) |
-| **Stylist** | Occasion-based chatbot ("outfit for a wedding") with suggestions | `POST /chatbot/message`, `POST /chatbot/reset` |
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-The Visualize renderer is pure frontend — it composites the background-removed
-PNGs from the catalogue, so it needs no extra backend.
+## React Compiler
 
-## Setup
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-```bash
-npm install
-cp .env.example .env        # then edit VITE_API_BASE_URL
-npm run dev                 # http://localhost:5173
-```
+## Expanding the Oxlint configuration
 
-### Environment
-
-| Variable | Description |
-|---|---|
-| `VITE_API_BASE_URL` | Base URL of the FastAPI backend. Local: `http://localhost:8000`. Production: your Railway URL. |
-
-Vite only exposes vars prefixed with `VITE_`. No secrets live in the frontend —
-Supabase access happens server-side in the backend.
-
-## Build & Deploy (Vercel)
-
-```bash
-npm run build     # outputs to dist/
-npm run preview   # preview the production build locally
-```
-
-Deploy on Vercel with:
-- **Root directory:** `frontend`
-- **Framework preset:** Vite
-- **Build command:** `npm run build`
-- **Output directory:** `dist`
-- **Env var:** `VITE_API_BASE_URL` = deployed backend URL
-
-## Notes on integration
-
-- The **chatbot** (`/chatbot/*`) and richer **visualization** endpoints live on
-  their owners' branches and aren't merged to `main` yet. The UI calls the
-  documented contracts and degrades gracefully (a friendly message) when an
-  endpoint isn't reachable, so the app never hard-crashes on a missing service.
-- CORS is already open (`allow_origins=["*"]`) on the backend for this sprint.
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.

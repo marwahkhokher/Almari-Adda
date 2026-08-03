@@ -116,10 +116,25 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     color_constraint = state.get("color_constraint")
     color_note = f", using only {color_constraint} items" if color_constraint else ""
 
-    # Filter P2's outfits by color constraint if the user asked for one.
-    # Relies on P2's item color field if present; falls back to enriched
-    # items' colors via id lookup if P2 doesn't include color itself.
+    # Filter P2's outfits by occasion formality and color constraint
     filtered_outfits = raw_outfits
+
+    # Formal/Semi-formal occasion check
+    FORMAL_OCCASIONS = {"wedding", "interview", "formal", "gala", "black tie", "eid", "reception", "party", "office", "business"}
+    if occasion and occasion.lower() in FORMAL_OCCASIONS:
+        from app.formality_utils import get_formality
+        def _is_formal_enough(outfit: dict) -> bool:
+            for slot in ("top", "bottom", "item"):
+                piece = outfit.get(slot)
+                if piece:
+                    sub = piece.get("subcategory", "") or ""
+                    formality = get_formality(sub)
+                    if formality == "casual":
+                        return False
+            return True
+
+        filtered_outfits = [o for o in filtered_outfits if _is_formal_enough(o)]
+
     if color_constraint:
         enriched_by_id = {i.id: i for i in state.get("relevant_items", [])}
 
@@ -133,7 +148,7 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
                     return True
             return False
 
-        filtered_outfits = [o for o in raw_outfits if _matches_color(o)] or []
+        filtered_outfits = [o for o in filtered_outfits if _matches_color(o)]
 
     if not filtered_outfits:
         chosen_items: List[ClothingItem] = []

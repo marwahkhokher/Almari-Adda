@@ -9,6 +9,9 @@ CLOTHING_TAXONOMY = {
         "blouse",
         "sweater",
         "hoodie",
+        "blazer",
+        "jacket",
+        "suit jacket",
     ],
     "bottom": [
         "jeans",

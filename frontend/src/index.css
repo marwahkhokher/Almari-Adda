@@ -1,54 +1,212 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap");
+/* ─── Google Fonts ─── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-:root {
-  color-scheme: light;
+/* ─── Tailwind v4 Custom Theme (Bright Soft Pastel Luxury) ─── */
+@theme {
+  /* Soft Pastel & Luxury Palette */
+  --color-primary: #FAF7F2;          /* Warm Ivory / Cream */
+  --color-secondary: #F3ECE6;        /* Soft Sand Linen */
+  --color-surface: #FFFFFF;          /* Pure White */
+  --color-surface-hover: #F8F4F0;    /* Soft Surface Hover */
+  --color-surface-light: #EBE3DB;    /* Soft Divider / Border */
+
+  --color-text-primary: #2C2523;      /* Deep Rich Charcoal / Espresso */
+  --color-text-secondary: #7A6F6B;    /* Warm Muted Taupe */
+  --color-text-muted: #9E928D;        /* Light Muted Gray */
+
+  /* Elegant Pastel Accents */
+  --color-accent: #C8866E;           /* Soft Terracotta Rose */
+  --color-accent-hover: #B5745C;     /* Deep Rose Gold */
+  --color-accent-light: #F4E4DF;     /* Soft Blush Tint */
+  --color-accent-glow: rgba(200, 134, 110, 0.25);
+
+  --color-pastel-pink: #F7E5E8;     /* Soft Blush Pink */
+  --color-pastel-lavender: #ECE8F7; /* Gentle Lavender */
+  --color-pastel-blue: #E3EEF8;     /* Soft Sky Pastel */
+  --color-pastel-beige: #F6EFE6;    /* Warm Beige Cream */
+  --color-pastel-sage: #E6F0E8;     /* Soft Pastel Sage */
+
+  --color-gold: #D4AF37;             /* Champagne Gold */
+  --color-gold-light: #F9F3DF;       /* Subtle Gold Shimmer */
+
+  --color-success: #589E67;
+  --color-error: #D9534F;
+  --color-warning: #E69D45;
+
+  /* Fonts */
+  --font-display: 'Playfair Display', 'Georgia', serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Soft Shadows */
+  --shadow-soft: 0 4px 20px -2px rgba(44, 37, 35, 0.05), 0 2px 8px -2px rgba(44, 37, 35, 0.03);
+  --shadow-medium: 0 8px 30px -4px rgba(44, 37, 35, 0.08), 0 4px 12px -3px rgba(44, 37, 35, 0.04);
+  --shadow-elevated: 0 16px 45px -8px rgba(44, 37, 35, 0.12), 0 6px 18px -4px rgba(44, 37, 35, 0.06);
+  --shadow-glow: 0 0 25px rgba(200, 134, 110, 0.2);
+  --shadow-gold: 0 0 25px rgba(212, 175, 55, 0.3);
+
+  /* Animations */
+  --animate-fade-in: fade-in 0.5s ease-out;
+  --animate-fade-up: fade-up 0.6s ease-out;
+  --animate-scale-in: scale-in 0.3s ease-out;
+  --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
 }
 
-html,
-body,
-#root {
-  height: 100%;
+/* ─── Keyframes ─── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-body {
-  @apply bg-cream text-ink font-sans antialiased;
-  margin: 0;
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Checkerboard so transparent (background-removed) PNGs read clearly. */
-.checker {
-  background-image:
-    linear-gradient(45deg, #ece4d8 25%, transparent 25%),
-    linear-gradient(-45deg, #ece4d8 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #ece4d8 75%),
-    linear-gradient(-45deg, transparent 75%, #ece4d8 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ─── Base Styles ─── */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: var(--color-primary);
+    color: var(--color-text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    line-height: 1.2;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  a {
+    color: var(--color-accent);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  a:hover {
+    color: var(--color-accent-hover);
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  button {
+    cursor: pointer;
+    font-family: var(--font-body);
+  }
+
+  ::selection {
+    background-color: var(--color-accent-light);
+    color: var(--color-text-primary);
   }
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.35s ease both;
+/* ─── Custom Scrollbar ─── */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-surface-light);
+    border-radius: 100px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+  }
 }
 
-/* Thin, unobtrusive scrollbars for the chat panel. */
-.scroll-slim::-webkit-scrollbar {
-  width: 6px;
-}
-.scroll-slim::-webkit-scrollbar-thumb {
-  @apply bg-sand rounded-full;
+/* ─── Utility Classes ─── */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(235, 227, 219, 0.7);
+  }
+
+  .glass-pastel {
+    background: linear-gradient(135deg, rgba(247, 229, 232, 0.5) 0%, rgba(236, 232, 247, 0.5) 50%, rgba(227, 238, 248, 0.5) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+  }
+
+  .gradient-accent {
+    background: linear-gradient(135deg, #D8957E 0%, #C8866E 100%);
+  }
+
+  .gradient-pastel {
+    background: linear-gradient(135deg, #FAF7F2 0%, #F5EAE6 40%, #EDEAF7 100%);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #B87258 0%, #8C5542 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .pattern-dots {
+    background-image: radial-gradient(rgba(200, 134, 110, 0.12) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+  }
+
+  .hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-medium);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .perspective-1000 {
+    perspective: 1200px;
+  }
 }
