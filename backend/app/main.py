@@ -4,7 +4,6 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pathlib import Path
-from pathlib import Path
 from supabase import create_client, Client
 from datetime import datetime
 
@@ -74,7 +73,12 @@ async def upload_clothing_item(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Pipeline failed: {str(e)}")
 
     # Automatically detect the dominant color
-    dominant_rgb = get_dominant_color(temp_path)
+    # Detect colour from the segmented clothing image,
+    # not the original uploaded photo.
+    dominant_rgb = get_dominant_color(
+        result["segmented_image_path"]
+    )
+
     detected_color = get_color_name(dominant_rgb)
 
     detected_season = detect_best_season(
