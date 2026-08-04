@@ -233,8 +233,8 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
                       Notes
                     </span>
 
-                    <span className="font-medium text-neutral-800">
-                      {metadata?.notes || 'No notes'}
+                    <span className="font-medium text-neutral-400 italic">
+                      {metadata?.notes || 'Add a note'}
                     </span>
                   </div>
 
