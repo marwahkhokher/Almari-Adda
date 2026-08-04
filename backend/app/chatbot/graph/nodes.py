@@ -4,6 +4,7 @@ takes the current ChatbotState, does one job, and returns a partial
 state update.
 """
 import json
+import random
 import logging
 from typing import List
 
@@ -13,6 +14,7 @@ from app.chatbot.graph.state import ChatbotState
 from app.chatbot.groq_client import groq_client
 from app.chatbot.schemas import ClothingItem, OutfitSuggestion
 from app.chatbot.outfit_engine_client import fetch_outfit_suggestions
+from app.formality_utils import get_formality, is_formality_compatible
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,7 @@ Given the user's message, respond with ONLY a JSON object (no other text):
 
 User message: "{message}"
 """
+
 _EXPLAIN_PROMPT = """You are an expert AI fashion stylist. A rule-based outfit 
 matching engine has already selected the following outfit for the occasion 
 "{occasion}"{color_note}:
@@ -34,9 +37,12 @@ matching engine has already selected the following outfit for the occasion
 {outfit_json}
 
 Write a warm, personalized 2-3 sentence explanation of why this combination 
-works well for the occasion, referencing the specific items. If the outfit 
-list is empty, explain clearly that no suitable outfit could be assembled 
-and mention what's missing.
+works well for the occasion, referencing the specific items by their 
+subcategory (e.g. "t-shirt", "jeans"). Do not mention any ID, product code, 
+or identifier. Only mention a color if one is explicitly given in the data 
+below — if color is null or missing, describe the item without guessing 
+its color. If the outfit list is empty, explain clearly that no suitable 
+outfit could be assembled and mention what's missing.
 
 Respond in this JSON format only:
 {{
@@ -44,6 +50,30 @@ Respond in this JSON format only:
   "confidence_score": float between 0 and 1
 }}
 """
+
+_OCCASION_FORMALITY = {
+    "wedding": "formal",
+    "interview": "formal",
+    "eid": "formal",
+    "office": "semi-formal",
+    "work": "semi-formal",
+    "party": "semi-formal",
+    "date": "semi-formal",
+    "university": "casual",
+    "college": "casual",
+    "school": "casual",
+    "gym": "casual",
+    "casual": "casual",
+    "everyday": "casual",
+    "hangout": "casual",
+}
+
+
+def _desired_formality(occasion):
+    if not occasion:
+        return None
+    return _OCCASION_FORMALITY.get(occasion.lower())
+
 
 async def parse_intent(state: ChatbotState) -> ChatbotState:
     """Use Groq to extract structured intent from the raw user message."""
@@ -117,8 +147,6 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     color_note = f", using only {color_constraint} items" if color_constraint else ""
 
     # Filter P2's outfits by color constraint if the user asked for one.
-    # Relies on P2's item color field if present; falls back to enriched
-    # items' colors via id lookup if P2 doesn't include color itself.
     filtered_outfits = raw_outfits
     if color_constraint:
         enriched_by_id = {i.id: i for i in state.get("relevant_items", [])}
@@ -135,10 +163,28 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
 
         filtered_outfits = [o for o in raw_outfits if _matches_color(o)] or []
 
+    # Filter by occasion's formality if we could infer one, so we don't
+    # always fall through to picking the very first outfit in the list.
+    desired_formality = _desired_formality(state.get("occasion"))
+    if desired_formality:
+        def _matches_formality(outfit: dict) -> bool:
+            for slot in ("top", "bottom", "item"):
+                piece = outfit.get(slot)
+                if not piece:
+                    continue
+                sub = piece.get("subcategory") or piece.get("category") or ""
+                item_formality = get_formality(sub)
+                if item_formality == "unknown" or not is_formality_compatible(item_formality, desired_formality):
+                    return False
+            return True
+
+        formality_matched = [o for o in filtered_outfits if _matches_formality(o)]
+        filtered_outfits = formality_matched or filtered_outfits
+
     if not filtered_outfits:
         chosen_items: List[ClothingItem] = []
     else:
-        top_outfit = filtered_outfits[0]
+        top_outfit = random.choice(filtered_outfits)
         chosen_items = []
         for slot in ("top", "bottom", "item"):
             piece = top_outfit.get(slot)
@@ -153,10 +199,22 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
                     )
                 )
 
+    def _strip_for_prompt(outfit: dict) -> dict:
+        cleaned = {}
+        for slot in ("top", "bottom", "item"):
+            piece = outfit.get(slot)
+            if piece:
+                cleaned[slot] = {
+                    "category": piece.get("category"),
+                    "subcategory": piece.get("subcategory"),
+                    "color": piece.get("color"),
+                }
+        return cleaned
+
     prompt = _EXPLAIN_PROMPT.format(
         occasion=occasion,
         color_note=color_note,
-        outfit_json=json.dumps(filtered_outfits[:1] if filtered_outfits else []),
+        outfit_json=json.dumps(_strip_for_prompt(top_outfit) if filtered_outfits else {}),
     )
 
     try:
@@ -171,6 +229,7 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     except Exception as e:
         logger.error("Outfit explanation generation failed: %s", e)
         return {"outfit_suggestions": [], "error": "I had trouble explaining the outfit suggestion."}
+
 
 def format_response(state: ChatbotState) -> ChatbotState:
     """Build the final reply text shown to the user."""
