@@ -8,7 +8,6 @@ import {
   MessageCircle,
   ShoppingBag,
   AlertTriangle,
-  RefreshCw,
   LayoutGrid,
   Shirt,
   PanelBottom,
@@ -226,7 +225,6 @@ export default function DashboardScreen() {
         </div>
 
         {/* ================= QUICK ACTIONS ================= */}
-        {/* ================= QUICK ACTIONS ================= */}
         <div className="grid grid-cols-3 gap-4 mb-10">
           {quickActions.map((action) => (
             <button
@@ -255,7 +253,7 @@ export default function DashboardScreen() {
         </div>
 
         {/* ================= CENTERED CLOSET ================= */}
-        <div className="w-full flex justify-center">
+        <div className="w-full flex justify-center -translate-y-3">
           <div className="w-full max-w-4xl mx-auto">
 
             {/* ================= CLOSET HEADER ================= */}
@@ -280,19 +278,6 @@ export default function DashboardScreen() {
                     My Closet
                   </h2>
                 </div>
-
-                {/* Refresh */}
-                <button
-                  onClick={fetchCatalogue}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2 px-3 py-2 rounded-lg bg-[#795334]/25 hover:bg-[#795334]/40 text-[#F8E4CA] text-xs font-medium transition"
-                >
-                  <RefreshCw
-                    className={`w-3.5 h-3.5 ${
-                      isLoading ? 'animate-spin' : ''
-                    }`}
-                  />
-                  Refresh
-                </button>
 
                 {/* Bottom molding */}
                 <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-b from-[#8A5E3C] to-[#5D3B27]" />
@@ -429,9 +414,6 @@ export default function DashboardScreen() {
 
                       <div className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-black/30 to-transparent pointer-events-none" />
 
-                      {/* ================================================= */}
-                      {/* CATEGORY SELECTOR INSIDE THE CLOSET              */}
-                      {/* ================================================= */}
                       {/* ================= CATEGORY SELECTOR ================= */}
                       <div className="relative z-10 mb-5">
 
@@ -476,7 +458,6 @@ export default function DashboardScreen() {
 
                                   {label}
 
-                                  {/* Simple active underline */}
                                   {isActive && (
                                     <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-pink-500 rounded-full" />
                                   )}
