@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Sparkles, Camera, MessageCircle, ShoppingBag, AlertTriangle, RefreshCw, LayoutGrid, Shirt, PanelBottom, Gem, Layers } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { getCatalogue } from '../lib/api.js';
+import { getCatalogue } from "../lib/api.js";
 import { playWhoosh } from '../lib/soundEffects.js';
 import ItemDetailModal from '../components/ItemDetailModal.jsx';
 

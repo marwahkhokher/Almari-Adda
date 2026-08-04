@@ -5,7 +5,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { getCatalogue } from "../api";
+import { getCatalogue } from "../lib/api.js";
 
 // Shared catalogue state so Closet, Outfits and Visualize all read from one
 // source of truth and a single refresh updates every view.

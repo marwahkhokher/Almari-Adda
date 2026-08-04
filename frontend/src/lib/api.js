@@ -1,22 +1,25 @@
 import { API_BASE } from "./config";
 
-// Thin wrapper around fetch that gives us consistent error handling and
-// JSON parsing. Throws an Error with a human-readable message on failure so
-// the UI can surface it in a toast.
+// ============================================================
+// Shared request helper
+// ============================================================
+
 async function request(path, options = {}) {
   let res;
+
   try {
     res = await fetch(`${API_BASE}${path}`, options);
   } catch (networkErr) {
-    // Backend unreachable (server down, CORS, wrong URL, offline).
     throw new ApiError(
       `Can't reach the backend at ${API_BASE}. Is it running?`,
-      0,
+      0
     );
   }
 
   const text = await res.text();
+
   let data = null;
+
   if (text) {
     try {
       data = JSON.parse(text);
@@ -31,11 +34,16 @@ async function request(path, options = {}) {
       (typeof data === "string" && data) ||
       res.statusText ||
       "Request failed";
+
     throw new ApiError(detail, res.status);
   }
 
   return data;
 }
+
+// ============================================================
+// Error class
+// ============================================================
 
 export class ApiError extends Error {
   constructor(message, status) {
@@ -45,51 +53,138 @@ export class ApiError extends Error {
   }
 }
 
-// GET /catalogue -> { items: [...] }
+// ============================================================
+// Catalogue
+// ============================================================
+
+// GET /catalogue
 export async function getCatalogue() {
   const data = await request("/catalogue");
-  return Array.isArray(data?.items) ? data.items : [];
+
+  return Array.isArray(data?.items)
+    ? data.items
+    : [];
 }
 
-// POST /upload (multipart) -> { item, all_predictions }
+// DELETE /catalogue/{item_id}
+export async function deleteItem(itemId) {
+  return request(`/catalogue/${itemId}`, {
+    method: "DELETE",
+  });
+}
+
+// ============================================================
+// Item metadata
+// ============================================================
+
+// GET /item-metadata/{item_id}
+export async function getItemMetadata(itemId) {
+  return request(`/item-metadata/${itemId}`);
+}
+
+// PUT /item-metadata/{item_id}
+export async function updateItemMetadata(itemId, metadata) {
+  return request(`/item-metadata/${itemId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(metadata),
+  });
+}
+
+// ============================================================
+// Upload
+// ============================================================
+
+// POST /upload
 export async function uploadItem(file) {
   const form = new FormData();
   form.append("file", file);
-  return request("/upload", { method: "POST", body: form });
+
+  return request("/upload", {
+    method: "POST",
+    body: form,
+  });
 }
 
-// POST /outfit-suggest -> { outfits: [...] }
+// Alias used by UploadScreen.jsx
+export async function uploadClothingItem(file) {
+  return uploadItem(file);
+}
+
+// ============================================================
+// Outfit suggestions
+// ============================================================
+
+// POST /outfit-suggest
+export async function getOutfitSuggestions() {
+  const data = await request("/outfit-suggest", {
+    method: "POST",
+  });
+
+  return Array.isArray(data?.outfits)
+    ? data.outfits
+    : [];
+}
+
+// Keep old function name too
 export async function suggestOutfits() {
-  const data = await request("/outfit-suggest", { method: "POST" });
-  return Array.isArray(data?.outfits) ? data.outfits : [];
+  return getOutfitSuggestions();
 }
 
-// POST /chatbot/message -> { session_id, reply, outfit_suggestions, image_urls }
+// ============================================================
+// Chatbot
+// ============================================================
+
+// POST /chatbot/message
 export async function sendChatMessage(sessionId, message) {
   return request("/chatbot/message", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: sessionId, message }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+      message: message,
+    }),
   });
 }
 
-// POST /chatbot/reset -> clears server-side memory for the session
+// POST /chatbot/reset
 export async function resetChatSession(sessionId) {
   return request("/chatbot/reset", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: sessionId }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+    }),
   });
 }
 
-// POST /visualize (multipart, item_ids + model as query params, optional
-// person_photo file) -> { visualization_url }
-export async function visualizeOutfit(itemIds, model = "female", personPhotoFile = null) {
-  const params = new URLSearchParams({ item_ids: itemIds.join(","), model });
+// ============================================================
+// Visualization
+// ============================================================
+
+// POST /visualize
+export async function visualizeOutfit(
+  itemIds,
+  model = "female",
+  personPhotoFile = null
+) {
+  const params = new URLSearchParams({
+    item_ids: itemIds.join(","),
+    model,
+  });
+
   const form = new FormData();
+
   if (personPhotoFile) {
     form.append("person_photo", personPhotoFile);
   }
+
   return request(`/visualize?${params.toString()}`, {
     method: "POST",
     body: form,
