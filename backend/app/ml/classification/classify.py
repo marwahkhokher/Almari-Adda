@@ -26,7 +26,6 @@ CLOTHING_TAXONOMY = {
     "eastern wear": [
         "shalwar kameez",
         "kurta",
-        "kurta trouser",
     ],
 }
 

@@ -18,10 +18,5 @@ export default function ProtectedRoute() {
     return <Navigate to="/auth" replace />;
   }
 
-  const hasGender = user?.user_metadata?.gender;
-  if (!hasGender) {
-    return <Navigate to="/gender-select" replace />;
-  }
-
   return <Outlet />;
 }

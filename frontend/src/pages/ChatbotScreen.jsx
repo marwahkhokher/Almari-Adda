@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Send, RotateCcw } from 'lucide-react';
-import Header from '../components/layout/Header.jsx';
+import { Send, RotateCcw, ArrowLeft } from 'lucide-react';
 import ChatBubble from '../components/chat/ChatBubble.jsx';
 import OutfitCard from '../components/chat/OutfitCard.jsx';
 import { sendChatMessage, resetChatSession } from '../lib/api.js';
+
+const BG_PATTERN =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cg transform='rotate(-10 100 100)' fill='none' stroke='%23D4537E' stroke-width='2'%3E%3Cpath d='M28 18l-8 6-8-6-8 6v8l8-2v22h16V26l8 2v-8z'/%3E%3Cg transform='translate(90 10)'%3E%3Cpath d='M2 2h26v14l-6 2v50h-6V34l-2 2-2-2v34h-6V18l-6-2z'/%3E%3C/g%3E%3Cg transform='translate(20 100)'%3E%3Cpath d='M2 20c0-10 8-18 18-18s18 8 18 18H2z'/%3E%3Cellipse cx='20' cy='20' rx='24' ry='4'/%3E%3C/g%3E%3Cg transform='translate(110 105)'%3E%3Ccircle cx='8' cy='10' r='8'/%3E%3Ccircle cx='32' cy='10' r='8'/%3E%3Cpath d='M16 10h8M0 8l-6-4M40 8l6-4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
 
 export default function ChatbotScreen() {
   const navigate = useNavigate();
@@ -16,7 +18,7 @@ export default function ChatbotScreen() {
 
   const initialMessage = {
     id: 'welcome',
-    text: "Hello! I'm your AI Fashion Stylist. Ask me anything about outfits, styling tips, or wardrobe suggestions!",
+    text: "Hi! I'm your AI stylist. Ask me anything about outfits, styling tips, or wardrobe suggestions.",
     isUser: false,
     timestamp: Date.now()
   };
@@ -52,7 +54,7 @@ export default function ChatbotScreen() {
 
     try {
       const response = await sendChatMessage(sessionId, userMessage.text);
-      
+
       const botMessage = {
         id: (Date.now() + 1).toString(),
         text: response.reply,
@@ -61,7 +63,7 @@ export default function ChatbotScreen() {
         imageUrls: response.image_urls,
         timestamp: Date.now()
       };
-      
+
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       setMessages(prev => [...prev, {
@@ -96,22 +98,32 @@ export default function ChatbotScreen() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-primary gradient-pastel">
-      <Header 
-        title="AI Stylist" 
-        showBack={true} 
-        rightAction={
-          <button 
-            onClick={handleReset}
-            className="p-2 text-text-secondary hover:text-accent transition-colors rounded-full hover:bg-white/80"
-            title="Reset Chat"
-          >
-            <RotateCcw className="w-5 h-5" />
-          </button>
-        }
+    <div className="flex flex-col h-screen bg-white relative overflow-hidden">
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.18]"
+        style={{ backgroundImage: BG_PATTERN, backgroundSize: '200px 200px' }}
       />
-      
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 no-scrollbar pb-28">
+
+      <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 shrink-0 relative z-10 bg-white">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2.5 text-pink-700 hover:text-white hover:bg-pink-600 transition-colors rounded-full bg-pink-50 border border-pink-200"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <span className="font-display text-2xl font-bold text-neutral-900">AI stylist</span>
+        </div>
+        <button
+          onClick={handleReset}
+          className="p-2 text-neutral-500 hover:text-pink-600 transition-colors rounded-full hover:bg-pink-50"
+          title="Reset chat"
+        >
+          <RotateCcw className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 pb-28 relative z-10 max-w-2xl mx-auto w-full">
         {messages.map((msg) => (
           <motion.div
             key={msg.id}
@@ -121,15 +133,15 @@ export default function ChatbotScreen() {
             className="flex flex-col gap-2"
           >
             <ChatBubble message={msg.text} isUser={msg.isUser} />
-            
+
             {(!msg.outfitSuggestions || msg.outfitSuggestions.length === 0) && msg.imageUrls && msg.imageUrls.length > 0 && (
               <div className={`flex flex-wrap gap-2 mt-2 ${msg.isUser ? 'justify-end' : 'justify-start ml-2'}`}>
                 {msg.imageUrls.map((url, i) => (
-                  <img key={i} src={url} alt="Reference" className="w-auto h-36 rounded-2xl object-cover shadow-soft border border-surface-light" />
+                  <img key={i} src={url} alt="Reference" className="w-auto h-36 rounded-xl object-cover border border-neutral-200" />
                 ))}
               </div>
             )}
-            
+
             {msg.outfitSuggestions && msg.outfitSuggestions.length > 0 && (
               <div className="mt-2 space-y-3">
                 {msg.outfitSuggestions.map((outfit, i) => (
@@ -146,33 +158,33 @@ export default function ChatbotScreen() {
             animate={{ opacity: 1, y: 0 }}
             className="flex gap-2 items-end max-w-[80%]"
           >
-            <div className="w-8 h-8 rounded-full gradient-accent text-white flex items-center justify-center flex-shrink-0 font-display font-bold text-xs shadow-soft">
+            <div className="w-8 h-8 rounded-full bg-pink-600 text-white flex items-center justify-center flex-shrink-0 font-display font-bold text-xs">
               AI
             </div>
-            <div className="px-4 py-3 rounded-2xl rounded-bl-none bg-white border border-surface-light shadow-soft flex items-center gap-1.5 h-[44px]">
-              <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 bg-accent rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="px-4 py-3 rounded-2xl rounded-bl-none bg-neutral-50 border border-neutral-200 flex items-center gap-1.5 h-[44px]">
+              <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </motion.div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-surface-light p-4 shadow-medium">
-        <div className="flex items-center gap-3 max-w-3xl mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 p-4 z-10">
+        <div className="flex items-center gap-3 max-w-2xl mx-auto">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask for outfit ideas, color matches..."
-            className="flex-1 max-h-32 min-h-[48px] rounded-2xl bg-secondary/70 px-5 py-3 border border-surface-light focus:ring-2 focus:ring-accent/30 focus:border-accent/40 text-text-primary placeholder:text-text-muted resize-none no-scrollbar text-sm md:text-base font-body"
+            className="flex-1 max-h-32 min-h-[48px] rounded-xl bg-neutral-50 px-4 py-3 border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-neutral-900 placeholder:text-neutral-400 resize-none text-sm"
             rows={1}
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || loading}
-            className="rounded-full gradient-accent text-white p-3 h-12 w-12 flex items-center justify-center shrink-0 disabled:opacity-40 shadow-soft hover:scale-105 transition-all"
+            className="rounded-full bg-pink-600 text-white p-3 h-12 w-12 flex items-center justify-center shrink-0 disabled:opacity-40 hover:bg-pink-700 transition"
           >
             <Send className="w-5 h-5 ml-0.5" />
           </button>

@@ -12,10 +12,15 @@ export const AuthProvider = ({ children }) => {
     // Check initial auth session
     const getInitialSession = async () => {
       try {
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession()
+        const {
+          data: { session: initialSession },
+          error,
+        } = await supabase.auth.getSession()
+
         if (error) {
           console.error('Error getting session:', error.message)
         }
+
         setSession(initialSession)
         setUser(initialSession?.user ?? null)
       } catch (err) {
@@ -28,7 +33,9 @@ export const AuthProvider = ({ children }) => {
     getInitialSession()
 
     // Listen reactively to auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       setSession(currentSession)
       setUser(currentSession?.user ?? null)
       setLoading(false)
@@ -44,36 +51,34 @@ export const AuthProvider = ({ children }) => {
       email,
       password,
     })
+
     if (error) throw error
+
     return data
   }
 
-  const signUp = async (email, password, options = {}) => {
+  // Sign up with first name and last name
+  const signUp = async (email, password, firstName, lastName) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      ...options,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      },
     })
+
     if (error) throw error
+
     return data
   }
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
-    if (error) throw error
-  }
 
-  const gender = user?.user_metadata?.gender ?? null
-
-  const setGender = async (g) => {
-    const { data, error } = await supabase.auth.updateUser({
-      data: { gender: g },
-    })
     if (error) throw error
-    if (data?.user) {
-      setUser(data.user)
-    }
-    return data
   }
 
   const value = {
@@ -83,18 +88,22 @@ export const AuthProvider = ({ children }) => {
     signIn,
     signUp,
     signOut,
-    gender,
-    setGender,
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
+
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider')
   }
+
   return context
 }
 

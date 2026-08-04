@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, CheckCircle, Sparkles } from 'lucide-react';
+import { Mail, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import Button from '../components/ui/Button.jsx';
-import Input from '../components/ui/Input.jsx';
+
+const BG_PATTERN =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cg transform='rotate(-10 100 100)' fill='none' stroke='%23D4537E' stroke-width='2'%3E%3Cpath d='M28 18l-8 6-8-6-8 6v8l8-2v22h16V26l8 2v-8z'/%3E%3Cg transform='translate(90 10)'%3E%3Cpath d='M2 2h26v14l-6 2v50h-6V34l-2 2-2-2v34h-6V18l-6-2z'/%3E%3C/g%3E%3Cg transform='translate(20 100)'%3E%3Cpath d='M2 20c0-10 8-18 18-18s18 8 18 18H2z'/%3E%3Cellipse cx='20' cy='20' rx='24' ry='4'/%3E%3C/g%3E%3Cg transform='translate(110 105)'%3E%3Ccircle cx='8' cy='10' r='8'/%3E%3Ccircle cx='32' cy='10' r='8'/%3E%3Cpath d='M16 10h8M0 8l-6-4M40 8l6-4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
 
 export default function AuthScreen() {
   const [mode, setMode] = useState('signin');
@@ -14,9 +15,11 @@ export default function AuthScreen() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const navigate = useNavigate();
   const { signIn, signUp } = useAuth();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,7 +32,12 @@ export default function AuthScreen() {
         if (password !== confirmPassword) {
           throw new Error("Passwords do not match");
         }
-        const data = await signUp(email, password);
+        const data = await signUp(
+          email,
+          password,
+          firstName,
+          lastName
+        );
 
         const needsConfirmation =
           !data.session ||
@@ -42,7 +50,7 @@ export default function AuthScreen() {
           );
           setMode('signin');
         } else {
-          navigate('/gender-select');
+          navigate('/dashboard');
         }
       } else {
         await signIn(email, password);
@@ -61,44 +69,45 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-primary gradient-pastel p-6 relative">
-      <div className="absolute inset-0 pattern-dots opacity-30 pointer-events-none"></div>
-
-      <motion.div 
-        className="w-full max-w-md z-10"
+    <div className="min-h-screen flex items-center justify-center bg-white p-6 relative overflow-hidden">
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.22]"
+        style={{
+          backgroundImage: BG_PATTERN,
+          backgroundSize: '200px 200px',
+        }}
+      />
+      <motion.div
+        className="w-full max-w-md relative z-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-white/80 px-4 py-1.5 rounded-full border border-accent-light/60 shadow-soft mb-3">
-            <Sparkles className="w-4 h-4 text-accent" />
-            <span className="text-xs font-semibold text-text-secondary">Virtual Wardrobe Experience</span>
-          </div>
-          <h1 className="font-display text-4xl text-gradient font-bold">Almari Adda</h1>
-          <p className="text-text-secondary text-sm mt-1">Sign in to access your digital closet</p>
+          <h1 className="font-display text-4xl font-bold text-neutral-900">Almari Adda</h1>
+          <p className="text-neutral-700 text-sm font-medium mt-2">Sign in to access your digital closet</p>
         </div>
 
-        <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-surface-light shadow-medium overflow-hidden">
-          <div className="flex border-b border-surface-light">
+        <div className="bg-white rounded-2xl border-2 border-pink-600 overflow-hidden">
+          <div className="flex border-b border-neutral-200">
             <button
               type="button"
-              className={`flex-1 py-4 text-sm font-semibold transition-colors relative ${mode === 'signin' ? 'text-accent-hover' : 'text-text-muted hover:text-text-secondary'}`}
+              className={`flex-1 py-4 text-sm font-medium transition-colors relative ${mode === 'signin' ? 'text-pink-600' : 'text-neutral-400 hover:text-neutral-600'}`}
               onClick={() => { setMode('signin'); setError(''); }}
             >
-              Sign In
+              Sign in
               {mode === 'signin' && (
-                <motion.div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" layoutId="tab-indicator" />
+                <motion.div className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-600" layoutId="tab-indicator" />
               )}
             </button>
             <button
               type="button"
-              className={`flex-1 py-4 text-sm font-semibold transition-colors relative ${mode === 'signup' ? 'text-accent-hover' : 'text-text-muted hover:text-text-secondary'}`}
+              className={`flex-1 py-4 text-sm font-medium transition-colors relative ${mode === 'signup' ? 'text-pink-600' : 'text-neutral-400 hover:text-neutral-600'}`}
               onClick={() => { setMode('signup'); setError(''); }}
             >
-              Sign Up
+              Sign up
               {mode === 'signup' && (
-                <motion.div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" layoutId="tab-indicator" />
+                <motion.div className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-600" layoutId="tab-indicator" />
               )}
             </button>
           </div>
@@ -108,9 +117,9 @@ export default function AuthScreen() {
               <motion.div
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-6 p-4 bg-pastel-sage border border-success/30 text-success rounded-2xl text-sm text-center flex flex-col items-center gap-2"
+                className="mb-6 p-4 bg-pink-50 border border-pink-200 text-pink-800 rounded-xl text-sm text-center flex flex-col items-center gap-2"
               >
-                <CheckCircle className="w-5 h-5 text-success" />
+                <CheckCircle className="w-5 h-5 text-pink-600" />
                 {successMessage}
               </motion.div>
             )}
@@ -119,31 +128,70 @@ export default function AuthScreen() {
               <motion.div
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-6 p-4 bg-error/10 border border-error/20 text-error rounded-2xl text-sm text-center flex flex-col items-center gap-2"
+                className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm text-center flex flex-col items-center gap-2"
               >
-                <Mail className="w-5 h-5 text-error" />
+                <Mail className="w-5 h-5 text-red-600" />
                 {error}
               </motion.div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                type="email"
-                label="Email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <Input
-                type="password"
-                label="Password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              
+              {mode === 'signup' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                    First name
+                  </label>
+
+                  <input
+                    type="text"
+                    placeholder="First name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    className="w-full border border-neutral-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1.5">
+                    Last name
+                  </label>
+
+                  <input
+                    type="text"
+                    placeholder="Last name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    className="w-full border border-neutral-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  />
+                </div>
+              </div>
+            )}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">Email</label>
+                <input
+                  type="email"
+                  placeholder="name@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full border border-neutral-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1.5">Password</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full border border-neutral-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                />
+              </div>
+
               <AnimatePresence mode="popLayout">
                 {mode === 'signup' && (
                   <motion.div
@@ -152,36 +200,33 @@ export default function AuthScreen() {
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <Input
+                    <label className="block text-sm font-medium text-neutral-700 mb-1.5">Confirm password</label>
+                    <input
                       type="password"
-                      label="Confirm Password"
-                      placeholder="Confirm your password"
+                      placeholder="••••••••"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
+                      className="w-full border border-neutral-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                     />
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <div className="pt-2">
-                <Button 
-                  type="submit" 
-                  variant="primary" 
-                  fullWidth 
-                  disabled={isLoading}
-                  className="gradient-accent text-white font-semibold py-3 shadow-soft"
-                >
-                  {isLoading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
-                </Button>
-              </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-pink-600 text-white font-medium text-sm py-3 rounded-lg hover:bg-pink-700 transition disabled:opacity-60"
+              >
+                {isLoading ? 'Loading...' : mode === 'signin' ? 'Sign in' : 'Sign up'}
+              </button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-text-secondary">
+            <div className="mt-6 text-center text-sm text-neutral-500">
               {mode === 'signin' ? (
-                <p>Don't have an account? <button type="button" onClick={() => { setMode('signup'); setError(''); setSuccessMessage(''); }} className="text-accent font-semibold hover:underline transition-colors">Sign Up</button></p>
+                <p>Don't have an account? <button type="button" onClick={() => { setMode('signup'); setError(''); setSuccessMessage(''); }} className="text-pink-600 font-medium hover:underline">Sign up</button></p>
               ) : (
-                <p>Already have an account? <button type="button" onClick={() => { setMode('signin'); setError(''); setSuccessMessage(''); }} className="text-accent font-semibold hover:underline transition-colors">Sign In</button></p>
+                <p>Already have an account? <button type="button" onClick={() => { setMode('signin'); setError(''); setSuccessMessage(''); }} className="text-pink-600 font-medium hover:underline">Sign in</button></p>
               )}
             </div>
           </div>
