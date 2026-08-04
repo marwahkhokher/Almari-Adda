@@ -1,32 +1,26 @@
 """
-Client for calling P2's outfit-matching engine (/outfit-suggest). This is
-the only file aware of that endpoint's request/response shape — kept
-decoupled the same way catalogue_client.py is decoupled from Supabase.
-If P2's endpoint changes or gets replaced, only this file needs updating.
+Client for calling P2's outfit-matching engine. Calls the matching
+logic directly in-process instead of over HTTP, since the chatbot
+runs inside the same FastAPI app as the /outfit-suggest route.
 """
 import logging
-from typing import List, Optional
-
-import httpx
-
-from app.chatbot.config import config
+from typing import List
 
 logger = logging.getLogger(__name__)
 
 
 async def fetch_outfit_suggestions() -> List[dict]:
     """
-    Call P2's /outfit-suggest endpoint and return the raw list of
-    outfit combinations as-is (top/bottom/formality dicts).
+    Fetch the catalogue and return the same outfit combination list
+    that GET /outfit-suggest would return, without an HTTP round trip.
     """
-    url = f"{config.BACKEND_BASE_URL}/outfit-suggest"
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(url)
-            response.raise_for_status()
-            data = response.json()
-    except httpx.HTTPError as e:
-        logger.error("Failed to fetch outfit suggestions from %s: %s", url, e)
-        raise RuntimeError("Could not reach /outfit-suggest endpoint") from e
+    from app.main import supabase
+    from app.outfit_matching import get_valid_outfits
 
-    return data.get("outfits", [])
+    try:
+        result = supabase.table("items").select("*").execute()
+        items = result.data
+        return get_valid_outfits(items)
+    except Exception as e:
+        logger.error("Failed to compute outfit suggestions: %s", e)
+        raise RuntimeError("Could not compute outfit suggestions") from e
