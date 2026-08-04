@@ -91,6 +91,58 @@ def run_full_outfit(person_image_bytes: bytes, top_image_bytes: bytes = None,
     current_person_img.save(output_buffer, format="PNG")
     return output_buffer.getvalue()
 
+@app.function(image=image, gpu="A10G", timeout=300)
+def run_dress_tryon(person_image_bytes: bytes, dress_image_bytes: bytes):
+    """
+    Single-pass try-on for a dress or full-outfit item (eastern wear,
+    etc.) - uses CatVTON's "overall" cloth_type instead of chaining
+    separate upper/lower calls.
+    """
+    import sys
+    sys.path.insert(0, "/root/CatVTON")
+
+    import io
+    import os
+    from PIL import Image
+    import app as catvton_app
+
+    def resize(img, target_size=(768, 1024)):
+        target_w, target_h = target_size
+        ratio = min(target_w / img.width, target_h / img.height)
+        new_w, new_h = int(img.width * ratio), int(img.height * ratio)
+        resized = img.resize((new_w, new_h), Image.LANCZOS)
+        padded = Image.new("RGB", target_size, (255, 255, 255))
+        paste_x = (target_w - new_w) // 2
+        paste_y = (target_h - new_h) // 2
+        padded.paste(resized, (paste_x, paste_y))
+        return padded
+
+    os.makedirs("/tmp/catvton", exist_ok=True)
+
+    person_img = resize(Image.open(io.BytesIO(person_image_bytes)).convert("RGB"))
+    dress_img = resize(Image.open(io.BytesIO(dress_image_bytes)).convert("RGB"))
+
+    person_path = "/tmp/catvton/person.png"
+    person_img.save(person_path)
+
+    dress_path = "/tmp/catvton/dress.png"
+    dress_img.save(dress_path)
+
+    blank_mask_path = "/tmp/catvton/blank_mask.png"
+    Image.new("L", person_img.size, 0).save(blank_mask_path)
+
+    result_image = catvton_app.submit_function(
+        {"background": person_path, "layers": [blank_mask_path]},
+        dress_path,
+        "overall",
+        30, 2.5, 42,
+        "result only",
+    )
+
+    output_buffer = io.BytesIO()
+    result_image.save(output_buffer, format="PNG")
+    return output_buffer.getvalue()
+
 
 @app.local_entrypoint()
 def main():

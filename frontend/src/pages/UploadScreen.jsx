@@ -6,7 +6,7 @@ import Header from '../components/layout/Header.jsx';
 import Button from '../components/ui/Button.jsx';
 import Badge from '../components/ui/Badge.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
-import { uploadClothingItem } from '../lib/api.js';
+import { uploadItem } from '../lib/api.js';
 
 export default function UploadScreen() {
   const navigate = useNavigate();
@@ -58,7 +58,7 @@ export default function UploadScreen() {
     setUploading(true);
     setError(null);
     try {
-      const response = await uploadClothingItem(file);
+      const response = await uploadItem(file);
       setResult(response);
     } catch (err) {
       setError(err.message || 'Failed to upload item. Please try again.');

@@ -81,3 +81,17 @@ export async function resetChatSession(sessionId) {
     body: JSON.stringify({ session_id: sessionId }),
   });
 }
+
+// POST /visualize (multipart, item_ids + model as query params, optional
+// person_photo file) -> { visualization_url }
+export async function visualizeOutfit(itemIds, model = "female", personPhotoFile = null) {
+  const params = new URLSearchParams({ item_ids: itemIds.join(","), model });
+  const form = new FormData();
+  if (personPhotoFile) {
+    form.append("person_photo", personPhotoFile);
+  }
+  return request(`/visualize?${params.toString()}`, {
+    method: "POST",
+    body: form,
+  });
+}

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Sparkles } from 'lucide-react';
+import { Check, Sparkles, Upload } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { getCatalogue } from '../lib/api.js';
+import { getCatalogue, visualizeOutfit } from '../lib/api.js';
 import Header from '../components/layout/Header.jsx';
 import Badge from '../components/ui/Badge.jsx';
 import LoadingSpinner from '../components/ui/LoadingSpinner.jsx';
@@ -11,11 +11,16 @@ export default function VisualizeScreen() {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState([]);
-  
+  const [personPhotoFile, setPersonPhotoFile] = useState(null);
+  const [personPhotoPreview, setPersonPhotoPreview] = useState(null);
+  const [resultImageUrl, setResultImageUrl] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [genError, setGenError] = useState(null);
+
   const navigate = useNavigate();
   const { gender: userGenderContext, user } = useAuth();
-  
-  const gender = (userGenderContext || user?.user_metadata?.gender || 'generic').toLowerCase();
+
+  const gender = (userGenderContext || user?.user_metadata?.gender || 'female').toLowerCase();
 
   useEffect(() => {
     const fetchCatalogue = async () => {
@@ -34,10 +39,37 @@ export default function VisualizeScreen() {
   }, []);
 
   const toggleItem = (item) => {
+    setResultImageUrl(null);
+    setGenError(null);
     if (selectedItems.find(i => i.id === item.id)) {
       setSelectedItems(selectedItems.filter(i => i.id !== item.id));
     } else {
       setSelectedItems([...selectedItems, item]);
+    }
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPersonPhotoFile(file);
+    setPersonPhotoPreview(URL.createObjectURL(file));
+    setResultImageUrl(null);
+    setGenError(null);
+  };
+
+  const handleGenerate = async () => {
+    if (selectedItems.length === 0) return;
+    setIsGenerating(true);
+    setGenError(null);
+    try {
+      const itemIds = selectedItems.map(i => i.id);
+      const response = await visualizeOutfit(itemIds, gender, personPhotoFile);
+      setResultImageUrl(response.visualization_url);
+    } catch (error) {
+      console.error("Visualization failed", error);
+      setGenError(error.message || "Failed to generate visualization");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -71,10 +103,7 @@ export default function VisualizeScreen() {
 
   return (
     <div className="min-h-screen bg-primary gradient-pastel flex flex-col">
-      <Header 
-        title="Visualize" 
-        showBack={true} 
-      />
+      <Header title="Visualize" showBack={true} />
 
       <main className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
         <div className="mb-8 flex items-end justify-between flex-wrap gap-4">
@@ -84,47 +113,65 @@ export default function VisualizeScreen() {
               <span className="text-xs font-semibold text-text-secondary">Virtual Try-On</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-display font-bold text-gradient">Outfit Canvas</h1>
-            <p className="text-text-secondary text-sm">Preview selected wardrobe items on your mannequin model.</p>
+            <p className="text-text-secondary text-sm">Preview selected wardrobe items on a model.</p>
           </div>
-          <Badge variant="pink" className="text-xs px-3 py-1 font-semibold">
-            In Development
-          </Badge>
+
+          <label className="inline-flex items-center gap-2 bg-white px-3 py-2 rounded-full border border-surface-light shadow-soft text-xs font-semibold text-text-secondary cursor-pointer hover:border-accent-light">
+            <Upload className="w-3.5 h-3.5" />
+            {personPhotoFile ? "Change your photo" : "Use your own photo"}
+            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+          </label>
         </div>
 
         <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-surface-light p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-8 shadow-medium">
-          
+
           <div className="flex flex-col gap-4">
             <div className="aspect-[3/4] bg-secondary/60 rounded-2xl border border-surface-light relative overflow-hidden flex flex-col items-center justify-center p-4">
-              
-              {renderSilhouette()}
-              
+
+              {isGenerating ? (
+                <div className="flex flex-col items-center gap-3">
+                  <LoadingSpinner size="lg" />
+                  <p className="text-text-muted text-xs font-medium">Generating your try-on...</p>
+                </div>
+              ) : resultImageUrl ? (
+                <img src={resultImageUrl} alt="Try-on result" className="w-full h-full object-contain rounded-xl" />
+              ) : personPhotoPreview ? (
+                <img src={personPhotoPreview} alt="Your photo" className="w-full h-full object-contain rounded-xl opacity-70" />
+              ) : (
+                renderSilhouette()
+              )}
+
               <div className="absolute top-4 left-4">
                 <Badge variant="neutral" className="bg-white/90 text-accent-hover border-surface-light text-xs font-semibold capitalize shadow-soft">
-                  Model: {gender}
+                  {personPhotoFile ? "Your Photo" : `Model: ${gender}`}
                 </Badge>
               </div>
 
-              {selectedItems.length === 0 && (
+              {!resultImageUrl && !isGenerating && selectedItems.length === 0 && (
                 <p className="absolute bottom-12 text-text-muted text-xs text-center font-medium bg-white/70 backdrop-blur px-4 py-1.5 rounded-full border border-surface-light">
                   Select items from your wardrobe to preview
                 </p>
               )}
 
-              {selectedItems.length > 0 && (
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center flex-wrap gap-2 px-4">
-                  {selectedItems.map(item => (
-                    <div key={item.id} className="bg-white/90 text-accent-hover border border-accent-light rounded-full px-3 py-1 text-xs font-semibold truncate max-w-[130px] shadow-soft">
-                      {item.subcategory || item.category}
-                    </div>
-                  ))}
-                </div>
+              {genError && (
+                <p className="absolute bottom-4 left-4 right-4 text-red-600 text-xs text-center font-medium bg-white/90 backdrop-blur px-4 py-1.5 rounded-full border border-red-200">
+                  {genError}
+                </p>
               )}
             </div>
+
+            <button
+              onClick={handleGenerate}
+              disabled={selectedItems.length === 0 || isGenerating}
+              className="w-full py-3 rounded-2xl bg-accent text-white font-semibold text-sm shadow-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent-hover transition-colors"
+            >
+              {isGenerating ? "Generating..." : "Generate Try-On"}
+            </button>
           </div>
 
           <div className="flex flex-col h-full max-h-[70vh]">
             <h3 className="text-text-primary text-sm font-bold mb-3 font-display">Select Wardrobe Items</h3>
-            
+
             {isLoading ? (
               <div className="flex-1 flex justify-center items-center">
                 <LoadingSpinner size="lg" />
@@ -144,14 +191,14 @@ export default function VisualizeScreen() {
                         key={item.id}
                         onClick={() => toggleItem(item)}
                         className={`relative aspect-square rounded-2xl bg-secondary/50 border overflow-hidden transition-all duration-200 ${
-                          isSelected 
-                            ? 'ring-2 ring-accent border-transparent shadow-medium scale-95' 
+                          isSelected
+                            ? 'ring-2 ring-accent border-transparent shadow-medium scale-95'
                             : 'border-surface-light hover:border-accent-light'
                         }`}
                       >
-                        <img 
-                          src={item.image_url} 
-                          alt={item.subcategory || item.category} 
+                        <img
+                          src={item.image_url}
+                          alt={item.subcategory || item.category}
                           className="w-full h-full object-contain p-1.5 filter drop-shadow-sm"
                         />
                         {isSelected && (
