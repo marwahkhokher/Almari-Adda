@@ -154,10 +154,13 @@ async def process_visualization_job(payload: dict) -> dict:
 
 async def run_worker_loop(poll_interval: float = 2.0):
     """Main background worker polling loop."""
-    logger.info("Starting Almari-Adda Background Job Worker...")
+    print("[Worker] Starting Almari-Adda Background Job Worker...", flush=True)
+    print("[Worker] Listening for pending jobs in Supabase queue...", flush=True)
     while True:
         try:
             jobs = get_pending_jobs(limit=3)
+            if jobs:
+                print(f"[Worker] Found {len(jobs)} pending job(s)!", flush=True)
             for job in jobs:
                 job_id = job["id"]
                 job_type = job["job_type"]
