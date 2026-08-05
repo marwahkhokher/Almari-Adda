@@ -43,27 +43,26 @@ async def generate_ai_chat_title(first_message: str) -> str:
 
 async def get_or_create_session(session_id: str, user_id: str, first_message: Optional[str] = None) -> Dict[str, Any]:
     """Retrieves an existing session or creates a new one with an AI-generated title."""
+    session_data = {
+        "id": str(session_id),
+        "user_id": str(user_id),
+        "title": "Styling Conversation",
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat(),
+    }
     try:
         res = supabase.table("chat_sessions").select("*").eq("id", session_id).execute()
         if res.data:
             return res.data[0]
 
-        title = "Styling Conversation"
         if first_message:
-            title = await generate_ai_chat_title(first_message)
+            session_data["title"] = await generate_ai_chat_title(first_message)
 
-        session_data = {
-            "id": session_id,
-            "user_id": user_id,
-            "title": title,
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
-        }
         ins_res = supabase.table("chat_sessions").insert(session_data).execute()
         return ins_res.data[0] if ins_res.data else session_data
     except Exception as e:
         logger.error("Failed in get_or_create_session: %s", e)
-        return {"id": session_id, "user_id": user_id, "title": "Styling Conversation"}
+        return session_data
 
 
 def save_chat_message(
