@@ -5,7 +5,7 @@ import {
   Gem, Layers, ShoppingBag, Upload, Image as ImageIcon, X, WandSparkles
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { getCatalogue, visualizeOutfit } from '../lib/api.js';
+import { getCatalogue, visualizeOutfit, pollJob, getJobStatus } from '../lib/api.js';
 
 const BG_PATTERN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cg transform='rotate(-10 100 100)' fill='none' stroke='%23D4537E' stroke-width='2'%3E%3Cpath d='M28 18l-8 6-8-6-8 6v8l8-2v22h16V26l8 2v-8z'/%3E%3Cg transform='translate(90 10)'%3E%3Cpath d='M2 2h26v14l-6 2v50h-6V34l-2 2-2-2v34h-6V18l-6-2z'/%3E%3C/g%3E%3Cg transform='translate(20 100)'%3E%3Cpath d='M2 20c0-10 8-18 18-18s18 8 18 18H2z'/%3E%3Cellipse cx='20' cy='20' rx='24' ry='4'/%3E%3C/g%3E%3Cg transform='translate(110 105)'%3E%3Ccircle cx='8' cy='10' r='8'/%3E%3Ccircle cx='32' cy='10' r='8'/%3E%3Cpath d='M16 10h8M0 8l-6-4M40 8l6-4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
@@ -19,7 +19,9 @@ const CLOTHING_TAXONOMY = {
 
 const SUBCATEGORY_TO_CATEGORY = {};
 Object.entries(CLOTHING_TAXONOMY).forEach(([category, subs]) => {
-  subs.forEach(sub => { SUBCATEGORY_TO_CATEGORY[sub] = category; });
+  subs.forEach((sub) => {
+    SUBCATEGORY_TO_CATEGORY[sub] = category;
+  });
 });
 
 const parentCategories = [
@@ -61,6 +63,24 @@ export default function VisualizeScreen() {
       }
     };
     fetchCatalogue();
+
+    // Recover active try-on job state if page was refreshed mid-process
+    const storedJobId = localStorage.getItem("tryon_job_id");
+    if (storedJobId) {
+      setIsGenerating(true);
+      pollJob(storedJobId)
+        .then((result) => {
+          if (result?.visualization_url) {
+            setResultImageUrl(result.visualization_url);
+          }
+          localStorage.removeItem("tryon_job_id");
+        })
+        .catch((err) => {
+          console.error("Failed to recover try-on job", err);
+          localStorage.removeItem("tryon_job_id");
+        })
+        .finally(() => setIsGenerating(false));
+    }
   }, []);
 
   const handlePhotoUpload = e => {
@@ -115,10 +135,20 @@ export default function VisualizeScreen() {
     try {
       const itemIds = selectedItems.map(i => i.id);
       const response = await visualizeOutfit(itemIds, gender, personPhotoFile);
-      setResultImageUrl(response.visualization_url);
+      if (response?.job_id) {
+        localStorage.setItem("tryon_job_id", response.job_id);
+        const result = await pollJob(response.job_id);
+        if (result?.visualization_url) {
+          setResultImageUrl(result.visualization_url);
+        }
+        localStorage.removeItem("tryon_job_id");
+      } else if (response?.visualization_url) {
+        setResultImageUrl(response.visualization_url);
+      }
     } catch (error) {
       console.error('Visualization failed', error);
       setGenError(error.message || 'Failed to generate visualization');
+      localStorage.removeItem("tryon_job_id");
     } finally {
       setIsGenerating(false);
     }

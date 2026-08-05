@@ -191,7 +191,6 @@ export async function visualizeOutfit(
   });
 }
 
-
 // POST /build-outfit -> { outfit, matched_item_count }
 export async function buildOutfit(preferences) {
   return request("/build-outfit", {
@@ -199,4 +198,31 @@ export async function buildOutfit(preferences) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(preferences),
   });
+}
+
+// ============================================================
+// Job Queue Status & Polling
+// ============================================================
+
+export async function getJobStatus(jobId) {
+  return request(`/jobs/${jobId}`);
+}
+
+export async function pollJob(jobId, onProgress = null, intervalMs = 1500, maxAttempts = 80) {
+  let attempts = 0;
+  while (attempts < maxAttempts) {
+    const job = await getJobStatus(jobId);
+    if (onProgress) onProgress(job);
+
+    if (job.status === "completed") {
+      return job.result;
+    }
+    if (job.status === "failed") {
+      throw new ApiError(job.error || "Job processing failed", 500);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    attempts++;
+  }
+  throw new ApiError("Job processing timed out", 408);
 }
