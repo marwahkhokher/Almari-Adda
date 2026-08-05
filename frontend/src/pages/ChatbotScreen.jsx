@@ -20,7 +20,8 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { sendChatMessage, getUserChatSessions, getChatSessionHistory } from '../lib/api.js';
 
 export default function ChatbotScreen() {
-  const { user } = useAuth();
+  const auth = useAuth() || {};
+  const { user } = auth;
   const userId = user?.id || user?.email || 'anonymous_user';
   const userName = user?.user_metadata?.full_name || 'Maya';
   const userAvatar = user?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop';

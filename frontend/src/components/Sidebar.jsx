@@ -15,7 +15,8 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const auth = useAuth() || {};
+  const { user, signOut } = auth;
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest';
 
@@ -28,7 +29,7 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="hidden lg:flex w-72 shrink-0 flex-col bg-[#FBF3E7] border-r border-[#e6d5b8] relative select-none z-30">
+    <aside className="flex w-72 shrink-0 flex-col bg-[#FBF3E7] border-r border-[#e6d5b8] relative select-none z-30">
       <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-b from-[#4a2f1c] via-[#3d2417] to-[#4a2f1c]">
         <div className="absolute top-1/2 -translate-y-1/2 -right-2 w-4 h-16 rounded-full bg-gradient-to-b from-[#d4b16a] to-[#a9803f] shadow-md" />
       </div>
