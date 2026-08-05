@@ -1,20 +1,28 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Send, RotateCcw, ArrowLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, RotateCcw, ArrowLeft, History, Plus, MessageSquare, X, Sparkles } from 'lucide-react';
 import ChatBubble from '../components/chat/ChatBubble.jsx';
 import OutfitCard from '../components/chat/OutfitCard.jsx';
-import { sendChatMessage, resetChatSession } from '../lib/api.js';
+import { useAuth } from '../contexts/AuthContext.jsx';
+import { sendChatMessage, resetChatSession, getUserChatSessions, getChatSessionHistory } from '../lib/api.js';
 
 const BG_PATTERN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cg transform='rotate(-10 100 100)' fill='none' stroke='%23D4537E' stroke-width='2'%3E%3Cpath d='M28 18l-8 6-8-6-8 6v8l8-2v22h16V26l8 2v-8z'/%3E%3Cg transform='translate(90 10)'%3E%3Cpath d='M2 2h26v14l-6 2v50h-6V34l-2 2-2-2v34h-6V18l-6-2z'/%3E%3C/g%3E%3Cg transform='translate(20 100)'%3E%3Cpath d='M2 20c0-10 8-18 18-18s18 8 18 18H2z'/%3E%3Cellipse cx='20' cy='20' rx='24' ry='4'/%3E%3C/g%3E%3Cg transform='translate(110 105)'%3E%3Ccircle cx='8' cy='10' r='8'/%3E%3Ccircle cx='32' cy='10' r='8'/%3E%3Cpath d='M16 10h8M0 8l-6-4M40 8l6-4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
 
 export default function ChatbotScreen() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userId = user?.id || user?.email || 'anonymous_user';
 
   const [sessionId, setSessionId] = useState('');
+  const [sessionTitle, setSessionTitle] = useState('New Conversation');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [sessions, setSessions] = useState([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const messagesEndRef = useRef(null);
 
@@ -27,13 +35,71 @@ export default function ChatbotScreen() {
 
   const [messages, setMessages] = useState([initialMessage]);
 
+  const loadUserSessions = async () => {
+    try {
+      const list = await getUserChatSessions(userId);
+      setSessions(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error('Failed to load user chat sessions', e);
+    }
+  };
+
   useEffect(() => {
     const sid = crypto?.randomUUID
       ? crypto.randomUUID()
       : Math.random().toString(36).substring(2, 15);
 
     setSessionId(sid);
-  }, []);
+    loadUserSessions();
+  }, [userId]);
+
+  const handleSelectSession = async (session) => {
+    if (session.id === sessionId) {
+      setIsHistoryOpen(false);
+      return;
+    }
+
+    setLoadingHistory(true);
+    setSessionId(session.id);
+    setSessionTitle(session.title || 'Styling Conversation');
+    setIsHistoryOpen(false);
+
+    try {
+      const history = await getChatSessionHistory(session.id);
+      if (Array.isArray(history) && history.length > 0) {
+        const formatted = history.map((m) => {
+          const suggestions = m.outfit_suggestions || [];
+          const image_urls = suggestions.flatMap((s) => (s.items || []).map((i) => i.image_url));
+          return {
+            id: m.id,
+            text: m.message,
+            isUser: m.sender === 'user',
+            outfitSuggestions: suggestions,
+            imageUrls: image_urls,
+            timestamp: new Date(m.created_at).getTime(),
+          };
+        });
+        setMessages(formatted);
+      } else {
+        setMessages([initialMessage]);
+      }
+    } catch (e) {
+      console.error('Failed to load session history', e);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleNewChat = () => {
+    const newSid = crypto?.randomUUID
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2, 15);
+
+    setSessionId(newSid);
+    setSessionTitle('New Conversation');
+    setMessages([{ ...initialMessage, id: Date.now().toString() }]);
+    setIsHistoryOpen(false);
+  };
 
   /*
    * Scroll to the newest content.
@@ -74,8 +140,14 @@ export default function ChatbotScreen() {
     try {
       const response = await sendChatMessage(
         sessionId,
-        userMessage.text
+        userMessage.text,
+        userId
       );
+
+      if (response.title) {
+        setSessionTitle(response.title);
+      }
+      loadUserSessions();
 
       const hasOutfit =
         response.outfit_suggestions &&
@@ -154,7 +226,6 @@ export default function ChatbotScreen() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 shrink-0 relative z-10 bg-white">
         <div className="flex items-center gap-3">
-
           <button
             onClick={() => navigate(-1)}
             className="p-2.5 text-pink-700 hover:text-white hover:bg-pink-600 transition-colors rounded-full bg-pink-50 border border-pink-200"
@@ -162,21 +233,131 @@ export default function ChatbotScreen() {
             <ArrowLeft className="w-6 h-6" />
           </button>
 
-          <span className="font-display text-2xl font-bold text-neutral-900">
-            AI stylist
-          </span>
+          <button
+            onClick={() => setIsHistoryOpen(true)}
+            className="p-2 text-pink-700 hover:text-pink-800 hover:bg-pink-50 transition-colors rounded-xl border border-pink-200 flex items-center gap-2 px-3 py-1.5 text-xs font-semibold shadow-sm"
+            title="View Chat History"
+          >
+            <History className="w-4 h-4 text-pink-600" />
+            <span>History</span>
+            {sessions.length > 0 && (
+              <span className="bg-pink-600 text-white rounded-full px-1.5 py-0.5 text-[10px] font-bold">
+                {sessions.length}
+              </span>
+            )}
+          </button>
 
+          <div className="flex flex-col">
+            <span className="font-display text-xl font-bold text-neutral-900 leading-tight">
+              AI stylist
+            </span>
+            <span className="text-xs text-pink-600 font-medium truncate max-w-[200px]">
+              {sessionTitle}
+            </span>
+          </div>
         </div>
 
-        <button
-          onClick={handleReset}
-          className="p-2 text-neutral-500 hover:text-pink-600 transition-colors rounded-full hover:bg-pink-50"
-          title="Reset chat"
-        >
-          <RotateCcw className="w-5 h-5" />
-        </button>
-
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleNewChat}
+            className="p-2 text-pink-700 hover:text-white hover:bg-pink-600 transition-colors rounded-xl bg-pink-50 border border-pink-200 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold shadow-sm"
+            title="Start new conversation"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">New Chat</span>
+          </button>
+          <button
+            onClick={handleReset}
+            className="p-2 text-neutral-500 hover:text-pink-600 transition-colors rounded-full hover:bg-pink-50"
+            title="Reset chat memory"
+          >
+            <RotateCcw className="w-5 h-5" />
+          </button>
+        </div>
       </div>
+
+      {/* Slide-out Chat History Drawer */}
+      <AnimatePresence>
+        {isHistoryOpen && (
+          <div className="fixed inset-0 z-50 flex">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsHistoryOpen(false)}
+              className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm"
+            />
+
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-sm bg-white h-full shadow-2xl z-10 flex flex-col border-r border-neutral-200"
+            >
+              <div className="p-4 border-b border-neutral-200 flex items-center justify-between bg-pink-50/50">
+                <div className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-pink-600" />
+                  <span className="font-display font-bold text-neutral-900 text-base">Your Conversations</span>
+                </div>
+                <button
+                  onClick={() => setIsHistoryOpen(false)}
+                  className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-full hover:bg-neutral-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-3 border-b border-neutral-100">
+                <button
+                  onClick={handleNewChat}
+                  className="w-full py-2.5 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Start New Conversation</span>
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                {sessions.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-48 text-center p-4">
+                    <MessageSquare className="w-8 h-8 text-neutral-300 mb-2" />
+                    <p className="text-neutral-500 text-xs font-medium">No previous conversations yet.</p>
+                    <p className="text-neutral-400 text-[11px] mt-1">Start chatting with the AI stylist to save history!</p>
+                  </div>
+                ) : (
+                  sessions.map((s) => {
+                    const isActive = s.id === sessionId;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => handleSelectSession(s)}
+                        className={`w-full text-left p-3 rounded-xl border transition-all flex flex-col gap-1 ${
+                          isActive
+                            ? 'bg-pink-50 border-pink-300 shadow-sm'
+                            : 'bg-white border-neutral-200 hover:border-pink-200 hover:bg-neutral-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`text-xs font-bold truncate ${isActive ? 'text-pink-700' : 'text-neutral-900'}`}>
+                            {s.title || 'Styling Conversation'}
+                          </span>
+                          {isActive && (
+                            <span className="w-2 h-2 rounded-full bg-pink-600 shrink-0" />
+                          )}
+                        </div>
+                        <span className="text-[10px] text-neutral-400 font-medium">
+                          {s.updated_at ? new Date(s.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Chat area */}
       <div
