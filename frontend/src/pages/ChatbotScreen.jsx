@@ -22,8 +22,14 @@ export default function ChatbotScreen() {
   const auth = useAuth() || {};
   const { user } = auth;
   const userId = user?.id || user?.email || 'anonymous_user';
-  const userName = user?.user_metadata?.full_name || 'Maya';
-  const userAvatar = user?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop';
+
+  // Real first name only, no fake "Maya" placeholder
+  const rawName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest';
+  const userName = rawName.split(' ')[0];
+
+  // Real uploaded avatar if present, otherwise null (renders initials badge)
+  const userAvatar = user?.user_metadata?.avatar_url || null;
+  const userInitial = userName?.[0]?.toUpperCase() || 'U';
 
   const [sessionId, setSessionId] = useState('');
   const [sessionTitle, setSessionTitle] = useState('New Conversation');
@@ -186,16 +192,9 @@ export default function ChatbotScreen() {
 
   return (
     <div className="flex h-screen w-screen bg-[#F7F1E8] font-serif text-[#3D2417] overflow-hidden select-none">
-      {/* ============================================================ */}
-      {/* SIDEBAR COMPONENT (src/components/Sidebar.jsx) */}
-      {/* ============================================================ */}
       <Sidebar />
 
-      {/* ============================================================ */}
-      {/* MAIN AI STYLIST CONTENT */}
-      {/* ============================================================ */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F7F1E8] px-8 py-5">
-        {/* Top Right Golden Floral Engraving Flourish */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F7F1E8] px-5 py-4">
         <div className="absolute top-0 right-0 w-64 h-64 pointer-events-none opacity-45 z-0">
           <svg viewBox="0 0 200 200" fill="none" stroke="#C9B6A0" strokeWidth="1.5">
             <path d="M200 0 C 140 30, 90 90, 80 180 M 160 20 C 130 50, 120 70, 110 110 M 180 60 C 140 80, 130 110, 130 140" />
@@ -206,18 +205,21 @@ export default function ChatbotScreen() {
         </div>
 
         {/* TOP BAR HEADER */}
-        <header className="h-14 flex items-center justify-between relative z-20 shrink-0 mb-3">
-          {/* Search Pill Input */}
-          <div className="relative w-96 mx-auto">
-            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#A89478]" />
-            <input
-              type="text"
-              placeholder="Search in your almari..."
-              className="w-full pl-11 pr-4 py-2 rounded-full bg-[#F3E6CF]/60 border border-[#E6D5B8] text-xs text-[#3D2417] placeholder-[#A89478] focus:outline-none focus:ring-1 focus:ring-[#7A2331]/30 shadow-inner"
-            />
+        <header className="h-14 flex items-center relative z-20 shrink-0 mb-3">
+          {/* Search bar — truly centered on the full header width,
+              independent of the right-side controls */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-96">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#A89478]" />
+              <input
+                type="text"
+                placeholder="Search in your almari..."
+                className="w-full pl-11 pr-4 py-2 rounded-full bg-[#F3E6CF]/60 border border-[#E6D5B8] text-xs text-[#3D2417] placeholder-[#A89478] focus:outline-none focus:ring-1 focus:ring-[#7A2331]/30 shadow-inner"
+              />
+            </div>
           </div>
 
-          {/* Right Header Items: History Trigger & Profile */}
+          {/* Right Header Items: History Trigger & Real Profile */}
           <div className="flex items-center gap-3 absolute right-0">
             <button
               onClick={() => setIsHistoryOpen(true)}
@@ -234,7 +236,13 @@ export default function ChatbotScreen() {
             </button>
 
             <div className="flex items-center gap-2 cursor-pointer">
-              <img src={userAvatar} alt="Maya" className="w-8 h-8 rounded-full object-cover border border-[#C9A769]" />
+              {userAvatar ? (
+                <img src={userAvatar} alt={userName} className="w-8 h-8 rounded-full object-cover border border-[#C9A769]" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-[#7A2331] text-[#FFFDF9] flex items-center justify-center text-xs font-bold border border-[#C9A769] shrink-0">
+                  {userInitial}
+                </div>
+              )}
               <span className="text-xs font-serif font-semibold text-[#3D2417]">{userName}</span>
               <ChevronDown className="w-3.5 h-3.5 text-[#8A7360]" />
             </div>
@@ -243,15 +251,13 @@ export default function ChatbotScreen() {
 
         {/* CHAT CONTAINER BODY */}
         <div className="flex-1 flex flex-col justify-between relative overflow-hidden z-10">
-          {/* Title & Subtitle */}
           <div className="mb-3 text-left pl-2">
             <h1 className="font-serif text-3xl font-bold text-[#3D2417] tracking-wide">AI Stylist</h1>
             <p className="text-xs text-[#8A7360] mt-0.5 font-serif">Ask for outfit ideas, styling tips, and wardrobe help.</p>
           </div>
 
-          {/* MAIN CLEAN CARD CONTAINER */}
+          {/* MAIN CARD CONTAINER — slightly bigger via reduced outer padding above */}
           <div className="flex-1 rounded-3xl bg-[#FFFDF9] border border-[#EADCCF] p-6 md:p-8 flex flex-col justify-between relative shadow-sm overflow-hidden">
-            {/* Messages Scroll Area */}
             <div className="flex-1 overflow-y-auto pr-2 space-y-6 pt-2 pb-2">
               {messages.map((msg) => (
                 <motion.div
@@ -262,7 +268,6 @@ export default function ChatbotScreen() {
                   className="flex flex-col space-y-3"
                 >
                   {!msg.isUser ? (
-                    /* AI STYLIST BUBBLE */
                     <div className="flex items-start gap-3.5 max-w-[85%]">
                       <div className="w-9 h-9 rounded-full bg-[#7A2331] text-[#FDFBF7] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                         <Sparkles className="w-4 h-4 text-[#F3D7A4]" />
@@ -276,7 +281,6 @@ export default function ChatbotScreen() {
                           </span>
                         </div>
 
-                        {/* Quick Preset Action Chips */}
                         {msg.id === 'welcome' && (
                           <div className="flex flex-wrap gap-2.5 mt-3">
                             {presetChips.map((chip) => (
@@ -292,7 +296,6 @@ export default function ChatbotScreen() {
                           </div>
                         )}
 
-                        {/* Outfit Suggestions Cards */}
                         {msg.outfitSuggestions && msg.outfitSuggestions.length > 0 && (
                           <div className="mt-3 space-y-3">
                             {msg.outfitSuggestions.map((outfit, idx) => (
@@ -314,7 +317,6 @@ export default function ChatbotScreen() {
                       </div>
                     </div>
                   ) : (
-                    /* USER BUBBLE */
                     <div className="flex items-start justify-end gap-3 self-end max-w-[80%] ml-auto">
                       <div className="flex flex-col items-end">
                         <div className="bg-[#F5DCD3] text-[#3D2417] p-3.5 px-4 rounded-2xl rounded-tr-xs text-xs leading-relaxed shadow-2xs border border-[#E8C5BA]">
@@ -325,13 +327,18 @@ export default function ChatbotScreen() {
                           </span>
                         </div>
                       </div>
-                      <img src={userAvatar} alt="Maya" className="w-8.5 h-8.5 rounded-full object-cover border border-[#C9A769] shrink-0 mt-0.5" />
+                      {userAvatar ? (
+                        <img src={userAvatar} alt={userName} className="w-8.5 h-8.5 rounded-full object-cover border border-[#C9A769] shrink-0 mt-0.5" />
+                      ) : (
+                        <div className="w-8.5 h-8.5 rounded-full bg-[#7A2331] text-[#FFFDF9] flex items-center justify-center text-xs font-bold border border-[#C9A769] shrink-0 mt-0.5">
+                          {userInitial}
+                        </div>
+                      )}
                     </div>
                   )}
                 </motion.div>
               ))}
 
-              {/* Thinking Indicator */}
               {loading && (
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-[#7A2331] text-[#FDFBF7] flex items-center justify-center shrink-0 shadow-sm">
@@ -346,7 +353,6 @@ export default function ChatbotScreen() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* INPUT BAR AT BOTTOM */}
             <div className="pt-3 border-t border-[#E8DCCF]">
               <div className="relative flex items-center">
                 <input
@@ -379,9 +385,6 @@ export default function ChatbotScreen() {
         </div>
       </main>
 
-      {/* ============================================================ */}
-      {/* SLIDE-OUT CHAT HISTORY DRAWER */}
-      {/* ============================================================ */}
       <AnimatePresence>
         {isHistoryOpen && (
           <div className="fixed inset-0 z-50 flex">
