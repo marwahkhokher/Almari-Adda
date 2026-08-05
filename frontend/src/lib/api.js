@@ -138,7 +138,7 @@ export async function suggestOutfits() {
 // ============================================================
 
 // POST /chatbot/message
-export async function sendChatMessage(sessionId, message) {
+export async function sendChatMessage(sessionId, message, userId = "anonymous_user") {
   return request("/chatbot/message", {
     method: "POST",
     headers: {
@@ -146,9 +146,20 @@ export async function sendChatMessage(sessionId, message) {
     },
     body: JSON.stringify({
       session_id: sessionId,
+      user_id: userId,
       message: message,
     }),
   });
+}
+
+// GET /chatbot/sessions?user_id={userId}
+export async function getUserChatSessions(userId = "anonymous_user") {
+  return request(`/chatbot/sessions?user_id=${encodeURIComponent(userId)}`);
+}
+
+// GET /chatbot/sessions/{sessionId}
+export async function getChatSessionHistory(sessionId) {
+  return request(`/chatbot/sessions/${sessionId}`);
 }
 
 // POST /chatbot/reset
