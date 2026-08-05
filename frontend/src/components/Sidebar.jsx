@@ -1,8 +1,7 @@
-import { useNavigate, useLocation } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, DoorOpen, Upload, WandSparkles, Sparkles, Heart, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
-// Update these paths to match your router as those screens go live.
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: Home, path: '/dashboard' },
   { label: 'My Almari', icon: DoorOpen, path: '/closet' },

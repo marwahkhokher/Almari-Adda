@@ -204,11 +204,13 @@ export default function ChatbotScreen() {
           </svg>
         </div>
 
-        {/* TOP BAR HEADER */}
-        <header className="h-14 flex items-center relative z-20 shrink-0 mb-3">
-          {/* Search bar — truly centered on the full header width,
-              independent of the right-side controls */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-96">
+             {/* TOP BAR HEADER */}
+        <header className="h-14 flex items-center justify-between relative z-20 shrink-0 mb-3 px-2">
+          {/* Left spacer adjusted so search bar shifts slightly left */}
+          <div className="w-32 hidden md:block" />
+
+          {/* Centered Search Bar */}
+          <div className="w-96 mx-auto">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#A89478]" />
               <input
@@ -219,8 +221,8 @@ export default function ChatbotScreen() {
             </div>
           </div>
 
-          {/* Right Header Items: History Trigger & Real Profile */}
-          <div className="flex items-center gap-3 absolute right-0">
+          {/* Right Header Controls */}
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setIsHistoryOpen(true)}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#F3E6CF] text-[#7A2331] hover:bg-[#EBDBC0] transition text-xs font-semibold border border-[#E6D5B8] shadow-xs"
