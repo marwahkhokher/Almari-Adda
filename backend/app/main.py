@@ -245,6 +245,38 @@ def _download_image_bytes(url: str) -> bytes:
     return response.content
 
 
+def _generate_local_overlay(person_bytes: bytes, top_bytes: bytes = None, bottom_bytes: bytes = None, dress_bytes: bytes = None) -> bytes:
+    import io
+    from PIL import Image
+
+    person_img = Image.open(io.BytesIO(person_bytes)).convert("RGBA")
+    w, h = person_img.size
+
+    if dress_bytes:
+        dress_img = Image.open(io.BytesIO(dress_bytes)).convert("RGBA")
+        dress_img = dress_img.resize((int(w * 0.75), int(h * 0.7)), Image.LANCZOS)
+        offset_x = (w - dress_img.width) // 2
+        offset_y = int(h * 0.18)
+        person_img.alpha_composite(dress_img, (offset_x, offset_y))
+    else:
+        if top_bytes:
+            top_img = Image.open(io.BytesIO(top_bytes)).convert("RGBA")
+            top_img = top_img.resize((int(w * 0.65), int(h * 0.4)), Image.LANCZOS)
+            offset_x = (w - top_img.width) // 2
+            offset_y = int(h * 0.18)
+            person_img.alpha_composite(top_img, (offset_x, offset_y))
+        if bottom_bytes:
+            bottom_img = Image.open(io.BytesIO(bottom_bytes)).convert("RGBA")
+            bottom_img = bottom_img.resize((int(w * 0.6), int(h * 0.45)), Image.LANCZOS)
+            offset_x = (w - bottom_img.width) // 2
+            offset_y = int(h * 0.45)
+            person_img.alpha_composite(bottom_img, (offset_x, offset_y))
+
+    out_buf = io.BytesIO()
+    person_img.convert("RGB").save(out_buf, format="PNG")
+    return out_buf.getvalue()
+
+
 @app.post("/visualize")
 async def visualize_outfit(
     item_ids: str,
