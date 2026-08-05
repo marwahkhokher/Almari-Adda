@@ -276,6 +276,33 @@ export default function VisualizeScreen() {
                 </p>
               )}
             </div>
+             <button
+              onClick={handleGenerate}
+              disabled={selectedItems.length === 0 || isGenerating}
+              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm ${
+                selectedItems.length === 0 || isGenerating
+                  ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
+                  : 'bg-pink-600 hover:bg-pink-700 text-white hover:-translate-y-0.5'
+              }`}
+            >
+              {isGenerating ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Generating outfit...
+                </>
+              ) : (
+                <>
+                  <WandSparkles className="w-4 h-4" />
+                  Generate outfit
+                </>
+              )}
+            </button>
+
+            {selectedItems.length === 0 && (
+              <p className="text-[11px] text-neutral-400 text-center">
+                Select at least one wardrobe item
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col h-full max-h-[70vh]">
@@ -377,34 +404,6 @@ export default function VisualizeScreen() {
                   })}
                 </div>
               </div>
-            )}
-
-            <button
-              onClick={handleGenerate}
-              disabled={selectedItems.length === 0 || isGenerating}
-              className={`mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm ${
-                selectedItems.length === 0 || isGenerating
-                  ? 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
-                  : 'bg-pink-600 hover:bg-pink-700 text-white hover:-translate-y-0.5'
-              }`}
-            >
-              {isGenerating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Generating outfit...
-                </>
-              ) : (
-                <>
-                  <WandSparkles className="w-4 h-4" />
-                  Generate outfit
-                </>
-              )}
-            </button>
-
-            {selectedItems.length === 0 && (
-              <p className="text-[11px] text-neutral-400 text-center mt-2">
-                Select at least one wardrobe item
-              </p>
             )}
           </div>
         </div>

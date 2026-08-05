@@ -44,6 +44,7 @@ FORMALITY_MAP = {
     "shirt": "semi-formal",
     "blouse": "semi-formal",
     "trousers": "semi-formal",
+    "dress": "semi-formal",   # generic fallback if no more specific dress type or explicit formality word is present
 
     # Formal
     "formal dress": "formal",
@@ -69,22 +70,28 @@ FORMALITY_MAP = {
     "shalwar kameez": "formal",
 }
 
-
-def get_formality(subcategory):
     if not subcategory or not isinstance(subcategory, str):
         return "casual"
-    
-    sub_lower = subcategory.strip().lower()
-    if sub_lower in FORMALITY_MAP:
-        return FORMALITY_MAP[sub_lower]
-        
-    if "formal" in sub_lower or "gown" in sub_lower or "suit" in sub_lower or "tuxedo" in sub_lower:
+
+    subcategory = subcategory.lower().strip()
+
+    # Exact match first (fastest, most reliable)
+    if subcategory in FORMALITY_MAP:
+        return FORMALITY_MAP[subcategory]
+
+    # Explicit formality words in the subcategory itself take priority
+    if "semi-formal" in subcategory or "semi formal" in subcategory:
+        return "semi-formal"
+    if "formal" in subcategory:
         return "formal"
-    if "blazer" in sub_lower or "skirt" in sub_lower or "blouse" in sub_lower or "sweater" in sub_lower:
-        return "semi-formal"
-    if "dress" in sub_lower:
-        return "semi-formal"
-        
+    if "casual" in subcategory:
+        return "casual"
+
+    # Fall back to substring matching against known garment keywords
+    for key in sorted(FORMALITY_MAP, key=len, reverse=True):
+        if key in subcategory:
+            return FORMALITY_MAP[key]
+
     return "casual"
 
 

@@ -8,6 +8,7 @@ import UploadScreen from './pages/UploadScreen.jsx'
 import ClosetScreen from './pages/ClosetScreen.jsx'
 import ChatbotScreen from './pages/ChatbotScreen.jsx'
 import VisualizeScreen from './pages/VisualizeScreen.jsx'
+import BuildOutfitScreen from './pages/BuildOutfitScreen.jsx'
 
 function AppRoutes() {
   const { user, loading } = useAuth()
@@ -30,6 +31,7 @@ function AppRoutes() {
         <Route path="/closet" element={<ClosetScreen />} />
         <Route path="/chatbot" element={<ChatbotScreen />} />
         <Route path="/visualize" element={<VisualizeScreen />} />
+        <Route path="/build-outfit" element={<BuildOutfitScreen />} />
       </Route>
 
       {/* Fallback */}

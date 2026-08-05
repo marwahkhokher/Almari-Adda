@@ -382,3 +382,126 @@ async def visualize_outfit(
     result_url = supabase.storage.from_("clothing-images").get_public_url(result_filename)
 
     return {"visualization_url": result_url}
+
+import random
+
+@app.post("/build-outfit")
+def build_outfit(preferences: dict):
+    """
+    Generates a full outfit, preferring one that best matches the
+    given colors/seasons/formality preferences. Color is weighted
+    highest, so a color match always wins over a season or formality
+    match. If no outfit satisfies every selected preference, returns
+    the closest match along with a message explaining what didn't
+    match.
+
+    Accepts an optional "exclude" list of outfit keys (as returned in
+    a previous response's "outfit_key" field) so the caller can ask
+    for a different outfit than ones already shown - this powers the
+    "regenerate" button on the frontend.
+    """
+    from app.outfit_matching import get_valid_outfits
+    from app.formality_utils import get_formality
+
+    colors = preferences.get("colors", [])
+    seasons = preferences.get("seasons", [])
+    formality = preferences.get("formality", [])
+    exclude = set(preferences.get("exclude", []))
+
+    items_result = supabase.table("items").select("*").execute()
+    metadata_result = supabase.table("item_metadata").select("*").execute()
+    metadata_by_item = {m["item_id"]: m for m in metadata_result.data}
+
+    all_items = items_result.data
+    outfits = get_valid_outfits(all_items)
+
+    if not outfits:
+        raise HTTPException(
+            status_code=404,
+            detail="Not enough items in your closet to form any outfit yet.",
+        )
+
+    def outfit_pieces(outfit):
+        if outfit.get("type") == "top_bottom":
+            return [outfit["top"], outfit["bottom"]]
+        return [outfit["item"]]
+
+    def outfit_key(outfit):
+        if outfit.get("type") == "top_bottom":
+            return f"top:{outfit['top']['id']}|bottom:{outfit['bottom']['id']}"
+        return f"single:{outfit['item']['id']}"
+
+    def outfit_criteria_match(outfit):
+        pieces = outfit_pieces(outfit)
+
+        matched_color = bool(colors) and any(
+            metadata_by_item.get(p["id"], {}).get("color") in colors
+            for p in pieces
+        )
+
+        if "all seasons" in seasons:
+            matched_season = True
+        elif seasons:
+            matched_season = any(
+                s in metadata_by_item.get(p["id"], {}).get("season", [])
+                for p in pieces for s in seasons
+            )
+        else:
+            matched_season = False
+
+        matched_formality = bool(formality) and any(
+            get_formality(p.get("subcategory", "")) in formality
+            for p in pieces
+        )
+
+        return matched_color, matched_season, matched_formality
+
+    def outfit_score(outfit):
+        matched_color, matched_season, matched_formality = outfit_criteria_match(outfit)
+        return matched_color * 100 + matched_season * 10 + matched_formality * 1
+
+    scored = [(o, outfit_score(o)) for o in outfits]
+
+    if colors or seasons or formality:
+        best_score = max(s for _, s in scored)
+        top_tier = [o for o, s in scored if s == best_score]
+    else:
+        best_score = None
+        top_tier = [o for o, _ in scored]
+
+    # Prefer outfits not already shown; if we've exhausted the top
+    # tier, allow repeats rather than falling back to a worse outfit -
+    # a repeat is a better user experience than a worse match.
+    fresh = [o for o in top_tier if outfit_key(o) not in exclude]
+    pool = fresh if fresh else top_tier
+
+    best = random.choice(pool)
+    matched_color, matched_season, matched_formality = outfit_criteria_match(best)
+
+    missed = []
+    if colors and not matched_color:
+        missed.append("color")
+    if seasons and not matched_season:
+        missed.append("season")
+    if formality and not matched_formality:
+        missed.append("style")
+
+    message = None
+    if missed:
+        missed_str = missed[0] if len(missed) == 1 else ", ".join(missed[:-1]) + " or " + missed[-1]
+        message = f"No outfit matched your {missed_str} preference — showing the closest match instead."
+
+    return {
+        "outfit": best,
+        "outfit_key": outfit_key(best),
+        "matched_item_count": len(all_items),
+        "match_quality": outfit_score(best),
+        "matched_criteria": {
+            "color": matched_color,
+            "season": matched_season,
+            "formality": matched_formality,
+        },
+        "requested_preferences": {"colors": colors, "seasons": seasons, "formality": formality},
+        "message": message,
+        "has_alternatives": len(top_tier) > 1,
+    }
