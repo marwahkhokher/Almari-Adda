@@ -6,11 +6,7 @@ from app.embedding_utils import cosine_similarity
 
 logger = logging.getLogger(__name__)
 
-<<<<<<< HEAD
-SINGLE_PIECE_KEYWORDS = {
-=======
 SINGLE_PIECE_KEYWORDS = (
->>>>>>> ca946a115360704b0710fd565fbe57535dd5eb26
     "dress",
     "gown",
     "abaya",
@@ -104,6 +100,7 @@ def get_valid_outfits(items, prompt_embedding=None):
             })
 
     # Case 2: single-piece outfits (dresses, gowns, abayas, sarees, kurtas, etc.)
+    for item in items:
         subcategory = (item.get("subcategory") or item.get("category") or "").lower()
         if _is_single_piece(subcategory) or "dress" in subcategory:
             formality = get_formality(subcategory)
