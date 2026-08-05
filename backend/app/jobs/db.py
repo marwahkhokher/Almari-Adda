@@ -1,11 +1,16 @@
-"""
-Database helper for managing async job queues in Supabase.
-Provides functions to insert, fetch pending, update status, and query job results.
-"""
+import os
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from app.main import supabase
+from dotenv import load_dotenv
+from pathlib import Path
+from supabase import create_client, Client
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / '.env', override=True)
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +76,7 @@ def get_pending_jobs(limit: int = 5) -> List[Dict[str, Any]]:
             supabase.table("jobs")
             .select("*")
             .eq("status", "pending")
-            .order("created_at", ascending=True)
+            .order("created_at")
             .limit(limit)
             .execute()
         )
