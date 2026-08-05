@@ -13,6 +13,7 @@ from datetime import date
 
 from app.chatbot.router import router as chatbot_router
 from app.item_metadata import router as item_metadata_router
+from app.filters import router as filters_router
 
 import requests
 import modal
@@ -47,6 +48,7 @@ app.add_middleware(
 
 app.include_router(chatbot_router)
 app.include_router(item_metadata_router)
+app.include_router(filters_router)
 
 _catalogue_cache = None
 
