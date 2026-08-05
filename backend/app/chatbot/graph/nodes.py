@@ -4,6 +4,7 @@ takes the current ChatbotState, does one job, and returns a partial
 state update.
 """
 import json
+import random
 import logging
 from typing import List
 
