@@ -4,7 +4,6 @@ takes the current ChatbotState, does one job, and returns a partial
 state update.
 """
 import json
-import random
 import logging
 from typing import List
 
@@ -136,8 +135,11 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     if state.get("error"):
         return {}
 
+    from app.ml.pipeline import _classifier
+    prompt_embedding = _classifier.get_text_embedding(state["user_message"])
+
     try:
-        raw_outfits = await fetch_outfit_suggestions()
+        raw_outfits = await fetch_outfit_suggestions(prompt_embedding=prompt_embedding)
     except Exception as e:
         logger.error("Fetching outfit suggestions failed: %s", e)
         return {"outfit_suggestions": [], "error": "I couldn't reach the outfit matching engine right now."}
@@ -152,7 +154,6 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     # Formal/Semi-formal occasion check
     FORMAL_OCCASIONS = {"wedding", "interview", "formal", "gala", "black tie", "eid", "reception", "party", "office", "business"}
     if occasion and occasion.lower() in FORMAL_OCCASIONS:
-        from app.formality_utils import get_formality
         def _is_formal_enough(outfit: dict) -> bool:
             for slot in ("top", "bottom", "item"):
                 piece = outfit.get(slot)
@@ -201,7 +202,9 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     if not filtered_outfits:
         chosen_items: List[ClothingItem] = []
     else:
-        top_outfit = random.choice(filtered_outfits)
+        # filtered_outfits is already sorted best-match-first by
+        # get_valid_outfits when a prompt_embedding was supplied.
+        top_outfit = filtered_outfits[0]
         chosen_items = []
         for slot in ("top", "bottom", "item"):
             piece = top_outfit.get(slot)

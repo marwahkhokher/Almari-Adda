@@ -1,4 +1,7 @@
 import colorsys
+from io import BytesIO
+
+import requests
 from PIL import Image
 
 
@@ -10,6 +13,10 @@ def get_dominant_color(image_path):
     """
     Detects the dominant clothing color from a background-removed image.
 
+    Accepts either a local file path (used right after the upload
+    pipeline runs) or a remote http(s) URL (used when reading items
+    back from Supabase storage, e.g. during outfit matching).
+
     Uses only visible pixels and ignores:
     - transparent pixels
     - extremely dark pixels
@@ -18,7 +25,12 @@ def get_dominant_color(image_path):
     Returns an RGB tuple.
     """
 
-    img = Image.open(image_path).convert("RGBA")
+    if isinstance(image_path, str) and image_path.startswith("http"):
+        response = requests.get(image_path, timeout=10)
+        response.raise_for_status()
+        img = Image.open(BytesIO(response.content)).convert("RGBA")
+    else:
+        img = Image.open(image_path).convert("RGBA")
 
     # Smaller image = faster processing
     img.thumbnail((150, 150))

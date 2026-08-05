@@ -119,6 +119,7 @@ async def upload_clothing_item(file: UploadFile = File(...)):
                 "subcategory": result["subcategory"],
                 "confidence": result["confidence"],
                 "image_url": image_url,
+                "embedding": result["embedding"],
                 "created_at": datetime.now().isoformat(),
             }
         )

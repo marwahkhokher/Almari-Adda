@@ -17,6 +17,7 @@ FORMALITY_MAP = {
     "sandals": "casual",
     "flip flops": "casual",
     "crop top": "casual",
+    "jacket": "casual",
 
     # Semi-formal
     "blazer": "semi-formal",
@@ -33,6 +34,7 @@ FORMALITY_MAP = {
     "vest": "semi-formal",
     "culottes": "semi-formal",
     "jumpsuit": "semi-formal",
+    "trousers": "semi-formal",
 
     # Formal
     "kurta": "formal",
