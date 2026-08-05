@@ -1,19 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, RotateCcw, ArrowLeft, History, Plus, MessageSquare, X, Sparkles } from 'lucide-react';
-import ChatBubble from '../components/chat/ChatBubble.jsx';
-import OutfitCard from '../components/chat/OutfitCard.jsx';
+import {
+  Search,
+  Bell,
+  ChevronDown,
+  Home,
+  ShoppingBag,
+  Upload,
+  Sparkles,
+  Heart,
+  Paperclip,
+  Send,
+  History,
+  Plus,
+  MessageSquare,
+  X,
+  Lock,
+  RotateCcw
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { sendChatMessage, resetChatSession, getUserChatSessions, getChatSessionHistory } from '../lib/api.js';
 
-const BG_PATTERN =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cg transform='rotate(-10 100 100)' fill='none' stroke='%23D4537E' stroke-width='2'%3E%3Cpath d='M28 18l-8 6-8-6-8 6v8l8-2v22h16V26l8 2v-8z'/%3E%3Cg transform='translate(90 10)'%3E%3Cpath d='M2 2h26v14l-6 2v50h-6V34l-2 2-2-2v34h-6V18l-6-2z'/%3E%3C/g%3E%3Cg transform='translate(20 100)'%3E%3Cpath d='M2 20c0-10 8-18 18-18s18 8 18 18H2z'/%3E%3Cellipse cx='20' cy='20' rx='24' ry='4'/%3E%3C/g%3E%3Cg transform='translate(110 105)'%3E%3Ccircle cx='8' cy='10' r='8'/%3E%3Ccircle cx='32' cy='10' r='8'/%3E%3Cpath d='M16 10h8M0 8l-6-4M40 8l6-4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
-
 export default function ChatbotScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const userId = user?.id || user?.email || 'anonymous_user';
+  const userName = user?.user_metadata?.full_name || 'Maya';
+  const userAvatar = user?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop';
 
   const [sessionId, setSessionId] = useState('');
   const [sessionTitle, setSessionTitle] = useState('New Conversation');
@@ -22,15 +37,14 @@ export default function ChatbotScreen() {
 
   const [sessions, setSessions] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const messagesEndRef = useRef(null);
 
   const initialMessage = {
     id: 'welcome',
-    text: "Hi! I'm your AI stylist. Ask me anything about outfits, styling tips, or wardrobe suggestions.",
+    text: `Good evening, ${userName}! ✨\nI'm your AI stylist, here to help you look and feel your best.\nWhat are we dressing for today?`,
     isUser: false,
-    timestamp: Date.now()
+    timestamp: '6:45 PM'
   };
 
   const [messages, setMessages] = useState([initialMessage]);
@@ -53,13 +67,82 @@ export default function ChatbotScreen() {
     loadUserSessions();
   }, [userId]);
 
+  const scrollToBottom = () => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'end'
+        });
+      }, 50);
+    });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading]);
+
+  const handleSend = async (customMessage = null) => {
+    const messageText = customMessage || input.trim();
+    if (!messageText || loading) return;
+
+    const userMessage = {
+      id: Date.now().toString(),
+      text: messageText,
+      isUser: true,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    if (!customMessage) setInput('');
+    setLoading(true);
+
+    try {
+      const response = await sendChatMessage(sessionId, messageText, userId);
+
+      if (response.title) {
+        setSessionTitle(response.title);
+      }
+      loadUserSessions();
+
+      const botMessage = {
+        id: (Date.now() + 1).toString(),
+        text: response.reply || "I've put together some great options from your almari!",
+        isUser: false,
+        outfitSuggestions: response.outfit_suggestions || [],
+        imageUrls: response.image_urls || [],
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          text: "Sorry, I couldn't reach the stylist engine right now. Please try again in a moment.",
+          isUser: false,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
   const handleSelectSession = async (session) => {
     if (session.id === sessionId) {
       setIsHistoryOpen(false);
       return;
     }
 
-    setLoadingHistory(true);
     setSessionId(session.id);
     setSessionTitle(session.title || 'Styling Conversation');
     setIsHistoryOpen(false);
@@ -76,7 +159,7 @@ export default function ChatbotScreen() {
             isUser: m.sender === 'user',
             outfitSuggestions: suggestions,
             imageUrls: image_urls,
-            timestamp: new Date(m.created_at).getTime(),
+            timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           };
         });
         setMessages(formatted);
@@ -85,8 +168,6 @@ export default function ChatbotScreen() {
       }
     } catch (e) {
       console.error('Failed to load session history', e);
-    } finally {
-      setLoadingHistory(false);
     }
   };
 
@@ -101,182 +182,261 @@ export default function ChatbotScreen() {
     setIsHistoryOpen(false);
   };
 
-  /*
-   * Scroll to the newest content.
-   *
-   * The large bottom spacer below the loading indicator means
-   * the indicator can be positioned comfortably above the fixed
-   * input bar.
-   */
-  const scrollToBottom = () => {
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'end'
-        });
-      }, 50);
-    });
-  };
+  const navItems = [
+    { label: 'Dashboard', icon: Home, path: '/dashboard' },
+    { label: 'My Almari', icon: ShoppingBag, path: '/closet' },
+    { label: 'Upload an Item', icon: Upload, path: '/upload' },
+    { label: 'Build your own Outfit', icon: Sparkles, path: '/visualize' },
+    { label: 'AI Stylist', icon: Sparkles, path: '/chatbot', active: true },
+    { label: 'Favourites', icon: Heart, path: '/favorites' },
+  ];
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, loading]);
-
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
-
-    const userMessage = {
-      id: Date.now().toString(),
-      text: input.trim(),
-      isUser: true,
-      timestamp: Date.now()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setLoading(true);
-
-    try {
-      const response = await sendChatMessage(
-        sessionId,
-        userMessage.text,
-        userId
-      );
-
-      if (response.title) {
-        setSessionTitle(response.title);
-      }
-      loadUserSessions();
-
-      const hasOutfit =
-        response.outfit_suggestions &&
-        response.outfit_suggestions.length > 0;
-
-      const botMessage = {
-        id: (Date.now() + 1).toString(),
-
-        // No "Here's what I'd suggest:" bubble when outfit cards exist
-        text: hasOutfit ? '' : response.reply,
-
-        isUser: false,
-        outfitSuggestions: response.outfit_suggestions,
-        imageUrls: response.image_urls,
-        timestamp: Date.now()
-      };
-
-      setMessages(prev => [...prev, botMessage]);
-    } catch (error) {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          text: "Sorry, I couldn't reach the stylist engine right now. Please try again in a moment.",
-          isUser: false,
-          timestamp: Date.now()
-        }
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const handleReset = async () => {
-    try {
-      if (sessionId) {
-        await resetChatSession(sessionId);
-      }
-
-      const newSid = crypto?.randomUUID
-        ? crypto.randomUUID()
-        : Math.random().toString(36).substring(2, 15);
-
-      setSessionId(newSid);
-
-      setMessages([
-        {
-          ...initialMessage,
-          id: Date.now().toString()
-        }
-      ]);
-    } catch (e) {
-      console.error('Error resetting chat', e);
-    }
-  };
+  const presetChips = [
+    { label: 'Dinner date', icon: '🍽️' },
+    { label: 'Casual day out', icon: '☀️' },
+    { label: 'Office look', icon: '💼' },
+    { label: 'Weekend brunch', icon: '☕' },
+  ];
 
   return (
-    <div className="flex flex-col h-screen bg-white relative overflow-hidden">
+    <div className="flex h-screen bg-[#FBF7F2] font-serif text-[#4A3B32] overflow-hidden select-none">
+      {/* ============================================================ */}
+      {/* SIDEBAR (From Image 1 & 3) */}
+      {/* ============================================================ */}
+      <aside className="w-64 bg-[#F5EFE6] border-r border-[#E6DCCF] flex flex-col justify-between relative shadow-md shrink-0">
+        {/* Brass Door Handle Detail on Left Edge */}
+        <div className="absolute left-1 top-1/2 -translate-y-1/2 w-3 h-32 bg-gradient-to-b from-[#C5A059] via-[#E8D1A7] to-[#9A7B3E] rounded-r-md border border-[#8C6D2F] shadow-lg flex items-center justify-center pointer-events-none">
+          <div className="w-1 h-20 bg-[#6E5421] rounded-full opacity-60" />
+        </div>
 
-      {/* Background pattern */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.18]"
-        style={{
-          backgroundImage: BG_PATTERN,
-          backgroundSize: '200px 200px'
-        }}
-      />
+        <div>
+          {/* Ornate Wooden Almari Adda Logo Badge */}
+          <div className="p-6 flex justify-center">
+            <div className="bg-[#4E2A1E] text-[#F3E5D8] px-6 py-3 rounded-2xl border-2 border-[#C5A059] shadow-md flex flex-col items-center justify-center text-center">
+              <span className="font-serif tracking-widest text-xs uppercase text-[#C5A059]">Almari</span>
+              <span className="font-serif font-bold text-lg tracking-wider text-[#F3E5D8]">ADDA</span>
+            </div>
+          </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 shrink-0 relative z-10 bg-white">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2.5 text-pink-700 hover:text-white hover:bg-pink-600 transition-colors rounded-full bg-pink-50 border border-pink-200"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
+          {/* Navigation Options List (Image 3) */}
+          <nav className="px-4 space-y-1.5 mt-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.active || location.pathname === item.path;
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => navigate(item.path)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all text-left ${
+                    isActive
+                      ? 'bg-[#F2E3E5] text-[#800020] font-semibold border border-[#E4C5CB] shadow-sm'
+                      : 'text-[#6A5A4D] hover:bg-[#EBE2D5] hover:text-[#3B2D26]'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-[#800020]' : 'text-[#8C7A6B]'}`} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
+        {/* Bottom Ornamental Flourish & History Button */}
+        <div className="p-4 border-t border-[#E6DCCF] flex flex-col gap-2">
           <button
             onClick={() => setIsHistoryOpen(true)}
-            className="p-2 text-pink-700 hover:text-pink-800 hover:bg-pink-50 transition-colors rounded-xl border border-pink-200 flex items-center gap-2 px-3 py-1.5 text-xs font-semibold shadow-sm"
-            title="View Chat History"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-[#EBE2D5] text-[#6A5A4D] hover:text-[#800020] hover:bg-[#E2D6C6] transition text-xs font-semibold border border-[#D9CEBF]"
           >
-            <History className="w-4 h-4 text-pink-600" />
-            <span>History</span>
-            {sessions.length > 0 && (
-              <span className="bg-pink-600 text-white rounded-full px-1.5 py-0.5 text-[10px] font-bold">
-                {sessions.length}
-              </span>
-            )}
+            <History className="w-4 h-4 text-[#800020]" />
+            <span>Chat History ({sessions.length})</span>
           </button>
-
-          <div className="flex flex-col">
-            <span className="font-display text-xl font-bold text-neutral-900 leading-tight">
-              AI stylist
-            </span>
-            <span className="text-xs text-pink-600 font-medium truncate max-w-[200px]">
-              {sessionTitle}
-            </span>
+          <div className="text-center text-[11px] text-[#A39283] tracking-widest font-serif opacity-70">
+            ~ ✤ ~
           </div>
         </div>
+      </aside>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleNewChat}
-            className="p-2 text-pink-700 hover:text-white hover:bg-pink-600 transition-colors rounded-xl bg-pink-50 border border-pink-200 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold shadow-sm"
-            title="Start new conversation"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">New Chat</span>
-          </button>
-          <button
-            onClick={handleReset}
-            className="p-2 text-neutral-500 hover:text-pink-600 transition-colors rounded-full hover:bg-pink-50"
-            title="Reset chat memory"
-          >
-            <RotateCcw className="w-5 h-5" />
-          </button>
+      {/* ============================================================ */}
+      {/* MAIN CONTENT AREA */}
+      {/* ============================================================ */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#FBF7F2]">
+        {/* TOP HEADER BAR (From Image 1 & 2) */}
+        <header className="h-16 px-8 flex items-center justify-between border-b border-[#E6DCCF]/60 bg-[#FBF7F2]/80 backdrop-blur-sm shrink-0 z-20">
+          {/* Search Input */}
+          <div className="relative w-96">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A39283]" />
+            <input
+              type="text"
+              placeholder="Search in your almari..."
+              className="w-full pl-10 pr-4 py-2 rounded-full bg-[#F5EFE6] border border-[#E6DCCF] text-xs text-[#3B2D26] placeholder-[#A39283] focus:outline-none focus:ring-1 focus:ring-[#800020]/30"
+            />
+          </div>
+
+          {/* User Profile & Notifications */}
+          <div className="flex items-center gap-4">
+            <button className="p-2 text-[#6A5A4D] hover:bg-[#EBE2D5] rounded-full relative transition">
+              <Bell className="w-4 h-4" />
+              <span className="w-2 h-2 rounded-full bg-[#800020] absolute top-1.5 right-1.5" />
+            </button>
+            <div className="flex items-center gap-2 cursor-pointer pl-2 border-l border-[#E6DCCF]">
+              <img src={userAvatar} alt="Maya" className="w-8 h-8 rounded-full object-cover border border-[#C5A059]" />
+              <span className="text-xs font-semibold text-[#3B2D26]">{userName}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-[#6A5A4D]" />
+            </div>
+          </div>
+        </header>
+
+        {/* CHAT CONTAINER BODY */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 flex flex-col items-center relative z-10">
+          <div className="w-full max-w-4xl flex flex-col h-full">
+            {/* Title & Subtitle Area (Image 2) */}
+            <div className="mb-4 text-left">
+              <h1 className="font-serif text-3xl font-bold text-[#3B2D26]">AI Stylist</h1>
+              <p className="text-xs text-[#8C7A6B] mt-0.5">Ask for outfit ideas, styling tips, and wardrobe help.</p>
+            </div>
+
+            {/* CURVY VINTAGE FRAME CONTAINER (Image 2 & Image 4 Asset) */}
+            <div
+              className="flex-1 rounded-[32px] p-6 md:p-8 flex flex-col justify-between relative shadow-lg border border-[#E6DCCF] overflow-hidden"
+              style={{
+                backgroundImage: 'url("/vintage_frame.png")',
+                backgroundSize: '100% 100%',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                backgroundColor: '#FFFDF9'
+              }}
+            >
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto pr-2 space-y-6 pt-4 pb-4">
+                {messages.map((msg) => (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col space-y-3"
+                  >
+                    {!msg.isUser ? (
+                      /* AI STYLIST MSG BUBBLE (Image 2) */
+                      <div className="flex items-start gap-3 max-w-[85%]">
+                        <div className="w-9 h-9 rounded-full bg-[#800020] text-[#F3E5D8] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                          <Sparkles className="w-4 h-4 text-[#E6C280]" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-semibold text-[#800020] mb-1">AI Stylist</span>
+                          <div className="bg-[#FAF5EF] border border-[#EBDCCF] text-[#4A3B32] p-4 rounded-2xl rounded-tl-sm text-xs leading-relaxed shadow-sm whitespace-pre-line">
+                            {msg.text}
+                            <span className="block text-[10px] text-[#A39283] text-right mt-1.5 font-sans">
+                              {msg.timestamp}
+                            </span>
+                          </div>
+
+                          {/* Quick Preset Prompt Chips (Only shown on initial welcome message) */}
+                          {msg.id === 'welcome' && (
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {presetChips.map((chip) => (
+                                <button
+                                  key={chip.label}
+                                  onClick={() => handleSend(`Can you suggest a ${chip.label.toLowerCase()} outfit?`)}
+                                  className="px-3.5 py-1.5 rounded-xl bg-[#FAF5EF] border border-[#EBDCCF] hover:border-[#800020]/40 text-[#5C4A3E] hover:text-[#800020] text-xs flex items-center gap-1.5 transition shadow-xs"
+                                >
+                                  <span>{chip.icon}</span>
+                                  <span>{chip.label}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Outfit Cards */}
+                          {msg.outfitSuggestions && msg.outfitSuggestions.length > 0 && (
+                            <div className="mt-3 space-y-3">
+                              {msg.outfitSuggestions.map((outfit, idx) => (
+                                <div key={idx} className="bg-[#FFFDF9] border border-[#E6DCCF] rounded-2xl p-4 shadow-sm">
+                                  <span className="text-xs font-bold text-[#800020] block mb-2 font-serif">Suggested Outfit</span>
+                                  <div className="flex gap-3 overflow-x-auto pb-2">
+                                    {outfit.items?.map((item, i) => (
+                                      <div key={i} className="flex flex-col items-center bg-[#FAF5EF] p-2 rounded-xl border border-[#EBDCCF] w-20 shrink-0">
+                                        <img src={item.image_url} alt={item.category} className="w-14 h-16 object-contain mb-1" />
+                                        <span className="text-[10px] text-[#5C4A3E] font-medium truncate w-full text-center">{item.subcategory || item.category}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <p className="text-xs text-[#5C4A3E] mt-2 bg-[#FAF5EF] p-2.5 rounded-xl border border-[#EBDCCF] leading-relaxed">{outfit.reasoning}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      /* USER MSG BUBBLE (Image 2) */
+                      <div className="flex items-start justify-end gap-3 self-end max-w-[80%] ml-auto">
+                        <div className="flex flex-col items-end">
+                          <div className="bg-[#800020] text-[#FFFDF9] p-3.5 px-4 rounded-2xl rounded-tr-sm text-xs leading-relaxed shadow-sm">
+                            {msg.text}
+                            <span className="block text-[9px] text-[#F3C5CE] text-right mt-1 font-sans">
+                              {msg.timestamp} ✓✓
+                            </span>
+                          </div>
+                        </div>
+                        <img src={userAvatar} alt="Maya" className="w-8 h-8 rounded-full object-cover border border-[#C5A059] shrink-0 mt-0.5" />
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+
+                {/* Thinking / Loading indicator */}
+                {loading && (
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[#800020] text-[#F3E5D8] flex items-center justify-center shrink-0 shadow-sm">
+                      <Sparkles className="w-4 h-4 text-[#E6C280]" />
+                    </div>
+                    <div className="bg-[#FAF5EF] border border-[#EBDCCF] p-3.5 rounded-2xl text-xs text-[#8C7A6B] flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#800020] animate-ping" />
+                      <span>Styling your outfit...</span>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* INPUT BAR AT BOTTOM (Image 2) */}
+              <div className="pt-3 border-t border-[#EBDCCF]/60">
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask your stylist anything..."
+                    className="w-full py-3.5 pl-5 pr-24 rounded-full bg-[#FFFDF9] border border-[#E6DCCF] text-xs text-[#3B2D26] placeholder-[#A39283] shadow-inner focus:outline-none focus:ring-1 focus:ring-[#800020]/40"
+                  />
+                  <div className="absolute right-2 flex items-center gap-1.5">
+                    <button className="p-2 text-[#A39283] hover:text-[#800020] transition rounded-full">
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleSend()}
+                      disabled={!input.trim() || loading}
+                      className="w-9 h-9 rounded-full bg-[#800020] hover:bg-[#66001A] disabled:opacity-40 text-[#FFFDF9] flex items-center justify-center transition shadow-sm"
+                    >
+                      <Send className="w-4 h-4 ml-0.5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-1 mt-2 text-[10px] text-[#A39283]">
+                  <Lock className="w-3 h-3 text-[#A39283]" />
+                  <span>Your conversations are private and secure</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
 
-      {/* Slide-out Chat History Drawer */}
+      {/* ============================================================ */}
+      {/* SLIDE-OUT CHAT HISTORY DRAWER */}
+      {/* ============================================================ */}
       <AnimatePresence>
         {isHistoryOpen && (
           <div className="fixed inset-0 z-50 flex">
@@ -293,25 +453,25 @@ export default function ChatbotScreen() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-sm bg-white h-full shadow-2xl z-10 flex flex-col border-r border-neutral-200"
+              className="relative w-full max-w-sm bg-[#FBF7F2] h-full shadow-2xl z-10 flex flex-col border-r border-[#E6DCCF]"
             >
-              <div className="p-4 border-b border-neutral-200 flex items-center justify-between bg-pink-50/50">
+              <div className="p-4 border-b border-[#E6DCCF] flex items-center justify-between bg-[#F5EFE6]">
                 <div className="flex items-center gap-2">
-                  <History className="w-5 h-5 text-pink-600" />
-                  <span className="font-display font-bold text-neutral-900 text-base">Your Conversations</span>
+                  <History className="w-5 h-5 text-[#800020]" />
+                  <span className="font-serif font-bold text-[#3B2D26] text-base">Your Conversations</span>
                 </div>
                 <button
                   onClick={() => setIsHistoryOpen(false)}
-                  className="p-1.5 text-neutral-400 hover:text-neutral-600 rounded-full hover:bg-neutral-100"
+                  className="p-1.5 text-[#8C7A6B] hover:text-[#3B2D26] rounded-full hover:bg-[#EBE2D5]"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="p-3 border-b border-neutral-100">
+              <div className="p-3 border-b border-[#E6DCCF]">
                 <button
                   onClick={handleNewChat}
-                  className="w-full py-2.5 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#800020] hover:bg-[#66001A] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Start New Conversation</span>
@@ -321,9 +481,9 @@ export default function ChatbotScreen() {
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 {sessions.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-48 text-center p-4">
-                    <MessageSquare className="w-8 h-8 text-neutral-300 mb-2" />
-                    <p className="text-neutral-500 text-xs font-medium">No previous conversations yet.</p>
-                    <p className="text-neutral-400 text-[11px] mt-1">Start chatting with the AI stylist to save history!</p>
+                    <MessageSquare className="w-8 h-8 text-[#A39283] mb-2" />
+                    <p className="text-[#6A5A4D] text-xs font-medium">No previous conversations yet.</p>
+                    <p className="text-[#8C7A6B] text-[11px] mt-1">Start chatting with the AI stylist to save history!</p>
                   </div>
                 ) : (
                   sessions.map((s) => {
@@ -334,19 +494,17 @@ export default function ChatbotScreen() {
                         onClick={() => handleSelectSession(s)}
                         className={`w-full text-left p-3 rounded-xl border transition-all flex flex-col gap-1 ${
                           isActive
-                            ? 'bg-pink-50 border-pink-300 shadow-sm'
-                            : 'bg-white border-neutral-200 hover:border-pink-200 hover:bg-neutral-50'
+                            ? 'bg-[#F2E3E5] border-[#E4C5CB] shadow-sm'
+                            : 'bg-[#FFFDF9] border-[#E6DCCF] hover:border-[#800020]/30 hover:bg-[#F9F3EA]'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className={`text-xs font-bold truncate ${isActive ? 'text-pink-700' : 'text-neutral-900'}`}>
+                          <span className={`text-xs font-bold truncate ${isActive ? 'text-[#800020]' : 'text-[#3B2D26]'}`}>
                             {s.title || 'Styling Conversation'}
                           </span>
-                          {isActive && (
-                            <span className="w-2 h-2 rounded-full bg-pink-600 shrink-0" />
-                          )}
+                          {isActive && <span className="w-2 h-2 rounded-full bg-[#800020] shrink-0" />}
                         </div>
-                        <span className="text-[10px] text-neutral-400 font-medium">
+                        <span className="text-[10px] text-[#8C7A6B] font-medium">
                           {s.updated_at ? new Date(s.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       </button>
@@ -358,203 +516,6 @@ export default function ChatbotScreen() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* Chat area */}
-      <div
-        className="
-          flex-1
-          overflow-y-auto
-          relative
-          z-10
-        "
-      >
-        <div
-          className="
-            p-4
-            md:p-6
-            space-y-4
-            max-w-2xl
-            mx-auto
-            w-full
-            pb-72
-          "
-        >
-
-          {/* Messages */}
-          {messages.map((msg) => (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="flex flex-col gap-2"
-            >
-
-              {/* Only render chat bubble if there is text */}
-              {msg.text && (
-                <ChatBubble
-                  message={msg.text}
-                  isUser={msg.isUser}
-                />
-              )}
-
-              {/* Reference images */}
-              {(!msg.outfitSuggestions ||
-                msg.outfitSuggestions.length === 0) &&
-                msg.imageUrls &&
-                msg.imageUrls.length > 0 && (
-                  <div
-                    className={`flex flex-wrap gap-2 mt-2 ${
-                      msg.isUser
-                        ? 'justify-end'
-                        : 'justify-start ml-2'
-                    }`}
-                  >
-                    {msg.imageUrls.map((url, i) => (
-                      <img
-                        key={i}
-                        src={url}
-                        alt="Reference"
-                        className="w-auto h-36 rounded-xl object-cover border border-neutral-200"
-                      />
-                    ))}
-                  </div>
-                )}
-
-              {/* Outfit suggestions */}
-              {msg.outfitSuggestions &&
-                msg.outfitSuggestions.length > 0 && (
-                  <div className="mt-2 space-y-3">
-                    {msg.outfitSuggestions.map((outfit, i) => (
-                      <OutfitCard
-                        key={i}
-                        outfit={outfit}
-                      />
-                    ))}
-                  </div>
-                )}
-
-            </motion.div>
-          ))}
-
-          {/* Thinking indicator */}
-          {loading && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex gap-2 items-end max-w-[80%] pb-10"
-            >
-
-              {/* AI avatar */}
-              <div className="w-8 h-8 rounded-full bg-pink-600 text-white flex items-center justify-center flex-shrink-0 font-display font-bold text-xs">
-                AI
-              </div>
-
-              {/* Thinking bubble */}
-              <div className="px-4 py-3 rounded-2xl rounded-bl-none bg-neutral-50 border border-neutral-200 flex items-center gap-1.5 h-[44px]">
-
-                <div
-                  className="w-2 h-2 bg-pink-500 rounded-full animate-bounce"
-                  style={{ animationDelay: '0ms' }}
-                />
-
-                <div
-                  className="w-2 h-2 bg-pink-500 rounded-full animate-bounce"
-                  style={{ animationDelay: '150ms' }}
-                />
-
-                <div
-                  className="w-2 h-2 bg-pink-500 rounded-full animate-bounce"
-                  style={{ animationDelay: '300ms' }}
-                />
-
-              </div>
-
-            </motion.div>
-          )}
-
-          {/* Large space after the latest content.
-              This forces the thinking indicator well above
-              the fixed input bar. */}
-          <div className="h-32" />
-
-          {/* Scroll anchor */}
-          <div
-            ref={messagesEndRef}
-            className="h-1"
-          />
-
-        </div>
-      </div>
-
-      {/* Fixed input area */}
-      <div
-        className="
-          fixed
-          bottom-0
-          left-0
-          right-0
-          bg-white
-          border-t
-          border-neutral-200
-          p-4
-          z-30
-        "
-      >
-        <div className="flex items-center gap-3 max-w-2xl mx-auto">
-
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask for outfit ideas, color matches..."
-            className="
-              flex-1
-              max-h-32
-              min-h-[48px]
-              rounded-xl
-              bg-neutral-50
-              px-4
-              py-3
-              border
-              border-neutral-200
-              focus:outline-none
-              focus:ring-2
-              focus:ring-pink-500
-              focus:border-pink-500
-              text-neutral-900
-              placeholder:text-neutral-400
-              resize-none
-              text-sm
-            "
-            rows={1}
-          />
-
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || loading}
-            className="
-              rounded-full
-              bg-pink-600
-              text-white
-              p-3
-              h-12
-              w-12
-              flex
-              items-center
-              justify-center
-              shrink-0
-              disabled:opacity-40
-              hover:bg-pink-700
-              transition
-            "
-          >
-            <Send className="w-5 h-5 ml-0.5" />
-          </button>
-
-        </div>
-      </div>
-
     </div>
   );
 }
