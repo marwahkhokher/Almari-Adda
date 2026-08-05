@@ -2,7 +2,7 @@
 Pydantic models for chatbot request/response payloads and internal
 data structures shared across the chatbot module.
 """
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 
@@ -16,8 +16,6 @@ class ClothingItem(BaseModel):
     image_url: str
     color: Optional[str] = None
     formality: Optional[str] = None
-    # True if color/formality came from Groq vision inference rather than
-    # the catalogue itself. Lets downstream nodes trust catalogue data more.
     attributes_inferred: bool = False
 
 
@@ -25,6 +23,7 @@ class ChatMessageRequest(BaseModel):
     """Incoming request to /chatbot/message."""
 
     session_id: str = Field(..., description="Client-generated session identifier")
+    user_id: Optional[str] = Field("anonymous_user", description="Authenticated user ID")
     message: str = Field(..., min_length=1, description="User's natural language message")
 
 
@@ -40,6 +39,7 @@ class ChatMessageResponse(BaseModel):
     """Response returned from /chatbot/message."""
 
     session_id: str
+    title: Optional[str] = None
     reply: str
     outfit_suggestions: List[OutfitSuggestion] = Field(default_factory=list)
     image_urls: List[str] = Field(default_factory=list)
