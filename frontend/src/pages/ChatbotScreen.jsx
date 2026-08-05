@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -116,7 +115,7 @@ export default function ChatbotScreen() {
         ...prev,
         {
           id: (Date.now() + 1).toString(),
-          text: "Sorry, I couldn't reach the stylist engine right now. Please try again in a moment.",
+          text: "Sorry, I couldn't reach the stylist engine right now. Please make sure the backend server is running.",
           isUser: false,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -186,28 +185,28 @@ export default function ChatbotScreen() {
   ];
 
   return (
-    <div className="flex h-screen w-screen bg-[#F9F3EA] font-serif text-[#3D2417] overflow-hidden select-none">
+    <div className="flex h-screen w-screen bg-[#F7F1E8] font-serif text-[#3D2417] overflow-hidden select-none">
       {/* ============================================================ */}
-      {/* OFFICIAL TEAMMATES SIDEBAR (src/components/Sidebar.jsx) */}
+      {/* SIDEBAR COMPONENT (src/components/Sidebar.jsx) */}
       {/* ============================================================ */}
       <Sidebar />
 
       {/* ============================================================ */}
-      {/* MAIN AI STYLIST CONTENT (Exact Reference Image 2) */}
+      {/* MAIN AI STYLIST CONTENT */}
       {/* ============================================================ */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F9F3EA] px-8 py-5">
-        {/* Top Right Golden Floral Engraving Flourish (Exact Reference Image 2) */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F7F1E8] px-8 py-5">
+        {/* Top Right Golden Floral Engraving Flourish */}
         <div className="absolute top-0 right-0 w-64 h-64 pointer-events-none opacity-45 z-0">
-          <svg viewBox="0 0 200 200" fill="none" stroke="#D1BFA9" strokeWidth="1.5">
+          <svg viewBox="0 0 200 200" fill="none" stroke="#C9B6A0" strokeWidth="1.5">
             <path d="M200 0 C 140 30, 90 90, 80 180 M 160 20 C 130 50, 120 70, 110 110 M 180 60 C 140 80, 130 110, 130 140" />
-            <circle cx="160" cy="20" r="3" fill="#D1BFA9" />
-            <circle cx="110" cy="110" r="3" fill="#D1BFA9" />
-            <circle cx="180" cy="60" r="3" fill="#D1BFA9" />
+            <circle cx="160" cy="20" r="3" fill="#C9B6A0" />
+            <circle cx="110" cy="110" r="3" fill="#C9B6A0" />
+            <circle cx="180" cy="60" r="3" fill="#C9B6A0" />
           </svg>
         </div>
 
         {/* TOP BAR HEADER */}
-        <header className="h-14 flex items-center justify-between relative z-20 shrink-0 mb-2">
+        <header className="h-14 flex items-center justify-between relative z-20 shrink-0 mb-3">
           {/* Search Pill Input */}
           <div className="relative w-96 mx-auto">
             <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#A89478]" />
@@ -222,7 +221,7 @@ export default function ChatbotScreen() {
           <div className="flex items-center gap-3 absolute right-0">
             <button
               onClick={() => setIsHistoryOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F3E6CF] text-[#7A2331] hover:bg-[#EBDBC0] transition text-xs font-semibold border border-[#E6D5B8] shadow-xs"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#F3E6CF] text-[#7A2331] hover:bg-[#EBDBC0] transition text-xs font-semibold border border-[#E6D5B8] shadow-xs"
               title="Chat History"
             >
               <History className="w-3.5 h-3.5" />
@@ -233,6 +232,7 @@ export default function ChatbotScreen() {
               <Bell className="w-4 h-4" />
               <span className="w-2 h-2 rounded-full bg-[#7A2331] absolute top-1.5 right-1.5" />
             </button>
+
             <div className="flex items-center gap-2 cursor-pointer">
               <img src={userAvatar} alt="Maya" className="w-8 h-8 rounded-full object-cover border border-[#C9A769]" />
               <span className="text-xs font-serif font-semibold text-[#3D2417]">{userName}</span>
@@ -241,25 +241,16 @@ export default function ChatbotScreen() {
           </div>
         </header>
 
-        {/* CHAT CONTAINER WRAPPER */}
+        {/* CHAT CONTAINER BODY */}
         <div className="flex-1 flex flex-col justify-between relative overflow-hidden z-10">
-          {/* Title & Subtitle (Exact Reference Image 2) */}
+          {/* Title & Subtitle */}
           <div className="mb-3 text-left pl-2">
             <h1 className="font-serif text-3xl font-bold text-[#3D2417] tracking-wide">AI Stylist</h1>
             <p className="text-xs text-[#8A7360] mt-0.5 font-serif">Ask for outfit ideas, styling tips, and wardrobe help.</p>
           </div>
 
-          {/* MAIN VINTAGE ARCH FRAME CONTAINER (Exact Reference Image 2) */}
-          <div className="flex-1 rounded-[36px] bg-[#FDFBF7] border-2 border-[#E8DCCF] p-6 md:p-8 flex flex-col justify-between relative shadow-sm overflow-hidden">
-            {/* Top Crown Filigree Crest Ornament */}
-            <div className="w-full flex justify-center mb-3">
-              <svg width="260" height="32" viewBox="0 0 260 32" fill="none" stroke="#C9B6A0" strokeWidth="1.2">
-                <path d="M 10 30 Q 60 4, 130 4 Q 200 4, 250 30" />
-                <path d="M 35 30 Q 75 10, 130 10 Q 185 10, 225 30" strokeWidth="0.8" />
-                <circle cx="130" cy="4" r="2.5" fill="#C9B6A0" />
-              </svg>
-            </div>
-
+          {/* MAIN CLEAN CARD CONTAINER */}
+          <div className="flex-1 rounded-3xl bg-[#FFFDF9] border border-[#EADCCF] p-6 md:p-8 flex flex-col justify-between relative shadow-sm overflow-hidden">
             {/* Messages Scroll Area */}
             <div className="flex-1 overflow-y-auto pr-2 space-y-6 pt-2 pb-2">
               {messages.map((msg) => (
@@ -271,7 +262,7 @@ export default function ChatbotScreen() {
                   className="flex flex-col space-y-3"
                 >
                   {!msg.isUser ? (
-                    /* AI STYLIST BUBBLE (Exact Reference Image 2) */
+                    /* AI STYLIST BUBBLE */
                     <div className="flex items-start gap-3.5 max-w-[85%]">
                       <div className="w-9 h-9 rounded-full bg-[#7A2331] text-[#FDFBF7] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                         <Sparkles className="w-4 h-4 text-[#F3D7A4]" />
@@ -285,7 +276,7 @@ export default function ChatbotScreen() {
                           </span>
                         </div>
 
-                        {/* Quick Preset Action Chips (Exact Reference Image 2) */}
+                        {/* Quick Preset Action Chips */}
                         {msg.id === 'welcome' && (
                           <div className="flex flex-wrap gap-2.5 mt-3">
                             {presetChips.map((chip) => (
@@ -323,7 +314,7 @@ export default function ChatbotScreen() {
                       </div>
                     </div>
                   ) : (
-                    /* USER BUBBLE (Exact Reference Image 2 - Peach/Salmon) */
+                    /* USER BUBBLE */
                     <div className="flex items-start justify-end gap-3 self-end max-w-[80%] ml-auto">
                       <div className="flex flex-col items-end">
                         <div className="bg-[#F5DCD3] text-[#3D2417] p-3.5 px-4 rounded-2xl rounded-tr-xs text-xs leading-relaxed shadow-2xs border border-[#E8C5BA]">
@@ -355,7 +346,7 @@ export default function ChatbotScreen() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* INPUT BAR AT BOTTOM (Exact Reference Image 2) */}
+            {/* INPUT BAR AT BOTTOM */}
             <div className="pt-3 border-t border-[#E8DCCF]">
               <div className="relative flex items-center">
                 <input
@@ -449,7 +440,7 @@ export default function ChatbotScreen() {
                         className={`w-full text-left p-3 rounded-xl border transition-all flex flex-col gap-1 ${
                           isActive
                             ? 'bg-[#7a2331]/10 border-[#E8C5BA] shadow-xs'
-                            : 'bg-[#FDFBF7] border-[#E6D5B8] hover:border-[#7A2331]/30 hover:bg-[#F3E6CF]/50'
+                            : 'bg-[#FFFDF9] border-[#E6D5B8] hover:border-[#7A2331]/30 hover:bg-[#F3E6CF]/50'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
