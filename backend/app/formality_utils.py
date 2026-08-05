@@ -20,6 +20,7 @@ FORMALITY_MAP = {
     "casual dress": "casual",
     "pants": "casual",
     "top": "casual",
+    "jacket": "casual",
 
     # Semi-formal
     "blazer": "semi-formal",
@@ -42,6 +43,7 @@ FORMALITY_MAP = {
     "dress": "semi-formal",
     "shirt": "semi-formal",
     "blouse": "semi-formal",
+    "trousers": "semi-formal",
 
     # Formal
     "formal dress": "formal",

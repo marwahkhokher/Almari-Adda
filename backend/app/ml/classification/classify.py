@@ -11,7 +11,6 @@ CLOTHING_TAXONOMY = {
         "hoodie",
         "blazer",
         "jacket",
-        "suit jacket",
     ],
     "bottom": [
         "jeans",
@@ -135,6 +134,34 @@ class ClothingClassifier:
                 return round(float(sim), 4)
         except Exception:
             return 0.5
+
+    def get_embedding(self, image_path: str):
+        """
+        Returns the raw CLIP image embedding as a plain Python list,
+        so it can be stored in Supabase (jsonb column) and later
+        compared against text embeddings for outfit matching.
+        """
+        image = Image.open(image_path).convert("RGB")
+        image_input = self.preprocess(image).unsqueeze(0)
+
+        with torch.no_grad():
+            image_features = self.model.encode_image(image_input)
+            image_features /= image_features.norm(dim=-1, keepdim=True)
+
+        return image_features.squeeze(0).tolist()
+
+    def get_text_embedding(self, text: str):
+        """
+        Returns the raw CLIP text embedding for an arbitrary prompt,
+        in the same embedding space as get_embedding, so the two can
+        be compared directly via cosine similarity.
+        """
+        with torch.no_grad():
+            tokens = self.tokenizer([text])
+            text_features = self.model.encode_text(tokens)
+            text_features /= text_features.norm(dim=-1, keepdim=True)
+
+        return text_features.squeeze(0).tolist()
 
 
 if __name__ == "__main__":

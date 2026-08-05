@@ -21,6 +21,8 @@ def process_clothing_upload(image_path: str, output_dir: str = "processed"):
       - confidence: how sure the model is
       - all_predictions: top-3 guesses, in case frontend wants to
         offer alternatives when confidence is low
+      - embedding: CLIP image embedding, stored so outfit matching
+        can compare items against a text prompt later
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -34,12 +36,17 @@ def process_clothing_upload(image_path: str, output_dir: str = "processed"):
     # not the raw photo - cleaner signal for CLIP
     classification_result = _classifier.classify(segmented_path)
 
+    # Step 3: compute the embedding on the same segmented image, so
+    # it's comparable to how classify() already reads it
+    embedding = _classifier.get_embedding(segmented_path)
+
     return {
         "segmented_image_path": segmented_path,
         "category": classification_result["top_prediction"]["category"],
         "subcategory": classification_result["top_prediction"]["subcategory"],
         "confidence": classification_result["top_prediction"]["confidence"],
         "all_predictions": classification_result["all_predictions"],
+        "embedding": embedding,
     }
 
 

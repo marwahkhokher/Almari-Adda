@@ -4,7 +4,6 @@ takes the current ChatbotState, does one job, and returns a partial
 state update.
 """
 import json
-import random
 import logging
 from typing import List
 
@@ -147,8 +146,11 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     if state.get("error"):
         return {}
 
+    from app.ml.pipeline import _classifier
+    prompt_embedding = _classifier.get_text_embedding(state["user_message"])
+
     try:
-        raw_outfits = await fetch_outfit_suggestions()
+        raw_outfits = await fetch_outfit_suggestions(prompt_embedding=prompt_embedding)
     except Exception as e:
         logger.error("Fetching outfit suggestions failed: %s", e)
         return {"outfit_suggestions": [], "error": "I couldn't reach the outfit matching engine right now."}
@@ -275,12 +277,18 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     if not filtered_outfits:
         chosen_items: List[ClothingItem] = []
     else:
+<<<<<<< HEAD
         # Score every outfit by occasion-style match, pick highest
         scored = [(o, _outfit_style_score(o)) for o in filtered_outfits]
         max_score = max(s for _, s in scored)
         # Pick randomly among the top-scored outfits (for variety)
         top_scored = [o for o, s in scored if s == max_score]
         top_outfit = random.choice(top_scored)
+=======
+        # filtered_outfits is already sorted best-match-first by
+        # get_valid_outfits when a prompt_embedding was supplied.
+        top_outfit = filtered_outfits[0]
+>>>>>>> main
         chosen_items = []
         for slot in ("top", "bottom", "item"):
             piece = top_outfit.get(slot)
