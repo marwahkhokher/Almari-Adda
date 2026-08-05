@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
   Bell,
   ChevronDown,
-  Home,
-  ShoppingBag,
-  Upload,
   Sparkles,
-  Heart,
   Paperclip,
   Send,
   History,
@@ -17,19 +13,16 @@ import {
   MessageSquare,
   X,
   Lock,
-  CheckCheck,
-  LogOut
+  CheckCheck
 } from 'lucide-react';
+import Sidebar from '../components/Sidebar.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { sendChatMessage, getUserChatSessions, getChatSessionHistory } from '../lib/api.js';
 
 export default function ChatbotScreen() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const userId = user?.id || user?.email || 'anonymous_user';
   const userName = user?.user_metadata?.full_name || 'Maya';
-  const userEmail = user?.email || 'maya@example.com';
   const userAvatar = user?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop';
 
   const [sessionId, setSessionId] = useState('');
@@ -184,15 +177,6 @@ export default function ChatbotScreen() {
     setIsHistoryOpen(false);
   };
 
-  const navItems = [
-    { label: 'Dashboard', icon: Home, path: '/dashboard' },
-    { label: 'My Almari', icon: ShoppingBag, path: '/closet' },
-    { label: 'Upload an item', icon: Upload, path: '/upload' },
-    { label: 'Build your own Outfit', icon: Sparkles, path: '/visualize' },
-    { label: 'AI Stylist', icon: Sparkles, path: '/chatbot', active: true },
-    { label: 'Favourites', icon: Heart, path: '/favorites' },
-  ];
-
   const presetChips = [
     { label: 'Dinner date', icon: '🍽️' },
     { label: 'Casual day out', icon: '☀️' },
@@ -201,258 +185,202 @@ export default function ChatbotScreen() {
   ];
 
   return (
-    <div className="flex h-screen bg-[#F7F1E8] font-serif text-[#3E3127] overflow-hidden select-none">
+    <div className="flex h-screen w-screen bg-[#F9F3EA] font-serif text-[#3D2417] overflow-hidden select-none">
       {/* ============================================================ */}
-      {/* SIDEBAR (Exact Image 1, 3 & Screenshot 4) */}
+      {/* OFFICIAL TEAMMATES SIDEBAR (src/components/Sidebar.jsx) */}
       {/* ============================================================ */}
-      <aside className="w-64 bg-[#F5EFE6] border-r border-[#EADCCF] flex flex-col justify-between relative shadow-xs shrink-0 z-30">
-        {/* Door Latch Handle along Left Edge (Screenshot 4) */}
-        <div className="absolute -left-1 top-1/2 -translate-y-1/2 z-40 pointer-events-none">
-          <img src="/door_handle.png" alt="Door Handle" className="h-28 w-auto object-contain drop-shadow-md" />
-        </div>
-
-        <div>
-          {/* Logo (Screenshot 4) */}
-          <div className="p-6 flex justify-center border-b border-[#EADCCF]/40">
-            <img src="/almari_logo.png" alt="Almari Adda" className="h-16 w-auto object-contain drop-shadow-xs" />
-          </div>
-
-          {/* Navigation Items (Image 3) */}
-          <nav className="px-4 space-y-1.5 mt-4">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.active || location.pathname === item.path;
-              return (
-                <button
-                  key={item.label}
-                  onClick={() => navigate(item.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs md:text-sm font-medium transition-all text-left ${
-                    isActive
-                      ? 'bg-[#F2E3E5] text-[#6B1D2F] font-bold border border-[#E8C5BA] shadow-2xs'
-                      : 'text-[#615246] hover:bg-[#EBE2D5] hover:text-[#3E3127]'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-[#6B1D2F]' : 'text-[#857467]'}`} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Bottom Profile & Chat History Drawer Trigger */}
-        <div className="p-4 border-t border-[#EADCCF] flex flex-col gap-3">
-          <button
-            onClick={() => setIsHistoryOpen(true)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#EBE2D5] text-[#615246] hover:text-[#6B1D2F] hover:bg-[#E2D6C6] transition text-xs font-semibold border border-[#D5C7B7]"
-          >
-            <History className="w-4 h-4 text-[#6B1D2F]" />
-            <span>Chat History ({sessions.length})</span>
-          </button>
-
-          {/* User Profile Card (Screenshot 4) */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <img src={userAvatar} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-[#C5A059] shrink-0" />
-              <div className="flex flex-col truncate">
-                <span className="text-xs font-bold text-[#3E3127] truncate">{userName}</span>
-                <span className="text-[10px] text-[#857467] truncate">{userEmail}</span>
-              </div>
-            </div>
-            <button
-              onClick={() => signOut && signOut()}
-              className="p-1 text-[#857467] hover:text-[#6B1D2F] transition"
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* ============================================================ */}
-      {/* MAIN CONTENT AREA */}
+      {/* MAIN AI STYLIST CONTENT (Exact Reference Image 2) */}
       {/* ============================================================ */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F7F1E8]">
-        {/* Top Right Gold Floral Eng Flourish (Image 2) */}
-        <div className="absolute top-0 right-0 w-52 h-52 pointer-events-none opacity-40 z-0">
-          <svg viewBox="0 0 200 200" fill="none" stroke="#C9B6A0" strokeWidth="1.5">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F9F3EA] px-8 py-5">
+        {/* Top Right Golden Floral Engraving Flourish (Exact Reference Image 2) */}
+        <div className="absolute top-0 right-0 w-64 h-64 pointer-events-none opacity-45 z-0">
+          <svg viewBox="0 0 200 200" fill="none" stroke="#D1BFA9" strokeWidth="1.5">
             <path d="M200 0 C 140 30, 90 90, 80 180 M 160 20 C 130 50, 120 70, 110 110 M 180 60 C 140 80, 130 110, 130 140" />
-            <circle cx="160" cy="20" r="3" fill="#C9B6A0" />
-            <circle cx="110" cy="110" r="3" fill="#C9B6A0" />
-            <circle cx="180" cy="60" r="3" fill="#C9B6A0" />
+            <circle cx="160" cy="20" r="3" fill="#D1BFA9" />
+            <circle cx="110" cy="110" r="3" fill="#D1BFA9" />
+            <circle cx="180" cy="60" r="3" fill="#D1BFA9" />
           </svg>
         </div>
 
         {/* TOP BAR HEADER */}
-        <header className="h-16 px-8 flex items-center justify-between relative z-20 shrink-0">
-          {/* Centered Search Pill Input */}
+        <header className="h-14 flex items-center justify-between relative z-20 shrink-0 mb-2">
+          {/* Search Pill Input */}
           <div className="relative w-96 mx-auto">
-            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#A8988A]" />
+            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#A89478]" />
             <input
               type="text"
               placeholder="Search in your almari..."
-              className="w-full pl-11 pr-4 py-2 rounded-full bg-[#F2EBE1] border border-[#E2D6C6] text-xs text-[#3E3127] placeholder-[#A8988A] focus:outline-none focus:ring-1 focus:ring-[#6B1D2F]/30 shadow-inner"
+              className="w-full pl-11 pr-4 py-2 rounded-full bg-[#F3E6CF]/60 border border-[#E6D5B8] text-xs text-[#3D2417] placeholder-[#A89478] focus:outline-none focus:ring-1 focus:ring-[#7A2331]/30 shadow-inner"
             />
           </div>
 
-          {/* User Profile Right */}
-          <div className="flex items-center gap-4 absolute right-8">
-            <button className="p-2 text-[#615246] hover:bg-[#EBE2D5] rounded-full relative transition">
+          {/* Right Header Items: History Trigger & Profile */}
+          <div className="flex items-center gap-3 absolute right-0">
+            <button
+              onClick={() => setIsHistoryOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F3E6CF] text-[#7A2331] hover:bg-[#EBDBC0] transition text-xs font-semibold border border-[#E6D5B8] shadow-xs"
+              title="Chat History"
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>History ({sessions.length})</span>
+            </button>
+
+            <button className="p-2 text-[#8A7360] hover:bg-[#F3E6CF] rounded-full relative transition">
               <Bell className="w-4 h-4" />
-              <span className="w-2 h-2 rounded-full bg-[#6B1D2F] absolute top-1.5 right-1.5" />
+              <span className="w-2 h-2 rounded-full bg-[#7A2331] absolute top-1.5 right-1.5" />
             </button>
             <div className="flex items-center gap-2 cursor-pointer">
-              <img src={userAvatar} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-[#C5A059]" />
-              <span className="text-xs font-serif font-semibold text-[#3E3127]">{userName}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-[#615246]" />
+              <img src={userAvatar} alt="Maya" className="w-8 h-8 rounded-full object-cover border border-[#C9A769]" />
+              <span className="text-xs font-serif font-semibold text-[#3D2417]">{userName}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-[#8A7360]" />
             </div>
           </div>
         </header>
 
-        {/* MAIN VINTAGE FRAME & CHAT BODY (Image 2 & Image 4 Arch) */}
-        <div className="flex-1 overflow-y-auto px-8 pb-6 flex flex-col items-center relative z-10">
-          <div className="w-full max-w-4xl flex flex-col h-full">
-            {/* Title & Subtitle */}
-            <div className="mb-3 text-left">
-              <h1 className="font-serif text-3xl font-bold text-[#2C221B] tracking-wide">AI Stylist</h1>
-              <p className="text-xs text-[#827164] mt-0.5 font-serif">Ask for outfit ideas, styling tips, and wardrobe help.</p>
+        {/* CHAT CONTAINER WRAPPER */}
+        <div className="flex-1 flex flex-col justify-between relative overflow-hidden z-10">
+          {/* Title & Subtitle (Exact Reference Image 2) */}
+          <div className="mb-3 text-left pl-2">
+            <h1 className="font-serif text-3xl font-bold text-[#3D2417] tracking-wide">AI Stylist</h1>
+            <p className="text-xs text-[#8A7360] mt-0.5 font-serif">Ask for outfit ideas, styling tips, and wardrobe help.</p>
+          </div>
+
+          {/* MAIN VINTAGE ARCH FRAME CONTAINER (Exact Reference Image 2) */}
+          <div className="flex-1 rounded-[36px] bg-[#FDFBF7] border-2 border-[#E8DCCF] p-6 md:p-8 flex flex-col justify-between relative shadow-sm overflow-hidden">
+            {/* Top Crown Filigree Crest Ornament */}
+            <div className="w-full flex justify-center mb-3">
+              <svg width="260" height="32" viewBox="0 0 260 32" fill="none" stroke="#C9B6A0" strokeWidth="1.2">
+                <path d="M 10 30 Q 60 4, 130 4 Q 200 4, 250 30" />
+                <path d="M 35 30 Q 75 10, 130 10 Q 185 10, 225 30" strokeWidth="0.8" />
+                <circle cx="130" cy="4" r="2.5" fill="#C9B6A0" />
+              </svg>
             </div>
 
-            {/* CURVED VINTAGE FRAME CONTAINER (Matching Image 2 & Image 4) */}
-            <div className="flex-1 rounded-[36px] bg-[#FDFBF7] border-2 border-[#EADCCF] p-6 md:p-8 flex flex-col justify-between relative shadow-sm overflow-hidden border-t-0 mt-1">
-              {/* Top Arch Crest Filigree SVG (Image 4 Crown) */}
-              <div className="absolute top-0 left-0 right-0 h-10 flex justify-center items-start pointer-events-none">
-                <svg width="260" height="34" viewBox="0 0 260 34" fill="none" stroke="#C9B6A0" strokeWidth="1.2">
-                  <path d="M 10 32 Q 60 4, 130 4 Q 200 4, 250 32" />
-                  <path d="M 35 32 Q 75 10, 130 10 Q 185 10, 225 32" strokeWidth="0.8" />
-                  <circle cx="130" cy="4" r="2.5" fill="#C9B6A0" />
-                </svg>
-              </div>
-
-              {/* Messages Scroll Area */}
-              <div className="flex-1 overflow-y-auto pr-2 space-y-6 pt-6">
-                {messages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex flex-col space-y-3"
-                  >
-                    {!msg.isUser ? (
-                      /* AI STYLIST BUBBLE (Image 2) */
-                      <div className="flex items-start gap-3.5 max-w-[85%]">
-                        <div className="w-9 h-9 rounded-full bg-[#6B1D2F] text-[#FDFBF7] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                          <Sparkles className="w-4 h-4 text-[#F3D7A4]" />
+            {/* Messages Scroll Area */}
+            <div className="flex-1 overflow-y-auto pr-2 space-y-6 pt-2 pb-2">
+              {messages.map((msg) => (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col space-y-3"
+                >
+                  {!msg.isUser ? (
+                    /* AI STYLIST BUBBLE (Exact Reference Image 2) */
+                    <div className="flex items-start gap-3.5 max-w-[85%]">
+                      <div className="w-9 h-9 rounded-full bg-[#7A2331] text-[#FDFBF7] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                        <Sparkles className="w-4 h-4 text-[#F3D7A4]" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[12px] font-serif font-bold text-[#7A2331] mb-1">AI Stylist</span>
+                        <div className="bg-[#FBF8F3] border border-[#E8DCCF] text-[#3D2417] p-4 rounded-2xl rounded-tl-xs text-xs leading-relaxed shadow-2xs whitespace-pre-line relative">
+                          {msg.text}
+                          <span className="block text-[10px] text-[#A89478] text-right mt-2 font-sans">
+                            {msg.timestamp}
+                          </span>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-[12px] font-serif font-bold text-[#6B1D2F] mb-1">AI Stylist</span>
-                          <div className="bg-[#FBF8F3] border border-[#E8DCCF] text-[#3E3127] p-4 rounded-2xl rounded-tl-xs text-xs leading-relaxed shadow-2xs whitespace-pre-line relative">
-                            {msg.text}
-                            <span className="block text-[10px] text-[#A39283] text-right mt-2 font-sans">
-                              {msg.timestamp}
-                            </span>
+
+                        {/* Quick Preset Action Chips (Exact Reference Image 2) */}
+                        {msg.id === 'welcome' && (
+                          <div className="flex flex-wrap gap-2.5 mt-3">
+                            {presetChips.map((chip) => (
+                              <button
+                                key={chip.label}
+                                onClick={() => handleSend(`Can you suggest a ${chip.label.toLowerCase()} outfit?`)}
+                                className="px-4 py-2 rounded-xl bg-[#FDFBF7] border border-[#E8DCCF] hover:border-[#7A2331]/40 text-[#6B5645] hover:text-[#7A2331] text-xs flex items-center gap-2 transition shadow-2xs font-serif"
+                              >
+                                <span>{chip.icon}</span>
+                                <span>{chip.label}</span>
+                              </button>
+                            ))}
                           </div>
+                        )}
 
-                          {/* Quick Preset Action Chips (Image 2) */}
-                          {msg.id === 'welcome' && (
-                            <div className="flex flex-wrap gap-2.5 mt-3">
-                              {presetChips.map((chip) => (
-                                <button
-                                  key={chip.label}
-                                  onClick={() => handleSend(`Can you suggest a ${chip.label.toLowerCase()} outfit?`)}
-                                  className="px-4 py-2 rounded-xl bg-[#FDFBF7] border border-[#E6DCCF] hover:border-[#6B1D2F]/40 text-[#5C4A3E] hover:text-[#6B1D2F] text-xs flex items-center gap-2 transition shadow-2xs font-serif"
-                                >
-                                  <span>{chip.icon}</span>
-                                  <span>{chip.label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Outfit Suggestions Cards */}
-                          {msg.outfitSuggestions && msg.outfitSuggestions.length > 0 && (
-                            <div className="mt-3 space-y-3">
-                              {msg.outfitSuggestions.map((outfit, idx) => (
-                                <div key={idx} className="bg-[#FBF8F3] border border-[#E8DCCF] rounded-2xl p-4 shadow-2xs">
-                                  <span className="text-xs font-bold text-[#6B1D2F] block mb-2 font-serif">Suggested Outfit</span>
-                                  <div className="flex gap-3 overflow-x-auto pb-2">
-                                    {outfit.items?.map((item, i) => (
-                                      <div key={i} className="flex flex-col items-center bg-[#F5EFE6] p-2 rounded-xl border border-[#E2D6C6] w-20 shrink-0">
-                                        <img src={item.image_url} alt={item.category} className="w-14 h-16 object-contain mb-1" />
-                                        <span className="text-[10px] text-[#5C4A3E] font-medium truncate w-full text-center">{item.subcategory || item.category}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <p className="text-xs text-[#5C4A3E] mt-2 bg-[#F5EFE6] p-2.5 rounded-xl border border-[#E2D6C6] leading-relaxed">{outfit.reasoning}</p>
+                        {/* Outfit Suggestions Cards */}
+                        {msg.outfitSuggestions && msg.outfitSuggestions.length > 0 && (
+                          <div className="mt-3 space-y-3">
+                            {msg.outfitSuggestions.map((outfit, idx) => (
+                              <div key={idx} className="bg-[#FBF8F3] border border-[#E8DCCF] rounded-2xl p-4 shadow-2xs">
+                                <span className="text-xs font-bold text-[#7A2331] block mb-2 font-serif">Suggested Outfit</span>
+                                <div className="flex gap-3 overflow-x-auto pb-2">
+                                  {outfit.items?.map((item, i) => (
+                                    <div key={i} className="flex flex-col items-center bg-[#F9F3EA] p-2 rounded-xl border border-[#E6D5B8] w-20 shrink-0">
+                                      <img src={item.image_url} alt={item.category} className="w-14 h-16 object-contain mb-1" />
+                                      <span className="text-[10px] text-[#6B5645] font-medium truncate w-full text-center">{item.subcategory || item.category}</span>
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      /* USER BUBBLE (Image 2 - Muted Salmon/Peach) */
-                      <div className="flex items-start justify-end gap-3 self-end max-w-[80%] ml-auto">
-                        <div className="flex flex-col items-end">
-                          <div className="bg-[#F5DCD3] text-[#3E3127] p-3.5 px-4 rounded-2xl rounded-tr-xs text-xs leading-relaxed shadow-2xs border border-[#E8C5BA]">
-                            {msg.text}
-                            <span className="flex items-center justify-end gap-1 text-[9px] text-[#8C7A6B] text-right mt-1.5 font-sans">
-                              <span>{msg.timestamp}</span>
-                              <CheckCheck className="w-3.5 h-3.5 text-[#6B1D2F]" />
-                            </span>
+                                <p className="text-xs text-[#6B5645] mt-2 bg-[#F9F3EA] p-2.5 rounded-xl border border-[#E6D5B8] leading-relaxed">{outfit.reasoning}</p>
+                              </div>
+                            ))}
                           </div>
-                        </div>
-                        <img src={userAvatar} alt="Maya" className="w-8.5 h-8.5 rounded-full object-cover border border-[#C5A059] shrink-0 mt-0.5" />
+                        )}
                       </div>
-                    )}
-                  </motion.div>
-                ))}
+                    </div>
+                  ) : (
+                    /* USER BUBBLE (Exact Reference Image 2 - Peach/Salmon) */
+                    <div className="flex items-start justify-end gap-3 self-end max-w-[80%] ml-auto">
+                      <div className="flex flex-col items-end">
+                        <div className="bg-[#F5DCD3] text-[#3D2417] p-3.5 px-4 rounded-2xl rounded-tr-xs text-xs leading-relaxed shadow-2xs border border-[#E8C5BA]">
+                          {msg.text}
+                          <span className="flex items-center justify-end gap-1 text-[9px] text-[#8A7360] text-right mt-1.5 font-sans">
+                            <span>{msg.timestamp}</span>
+                            <CheckCheck className="w-3.5 h-3.5 text-[#7A2331]" />
+                          </span>
+                        </div>
+                      </div>
+                      <img src={userAvatar} alt="Maya" className="w-8.5 h-8.5 rounded-full object-cover border border-[#C9A769] shrink-0 mt-0.5" />
+                    </div>
+                  )}
+                </motion.div>
+              ))}
 
-                {/* Thinking Indicator */}
-                {loading && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-[#6B1D2F] text-[#FDFBF7] flex items-center justify-center shrink-0 shadow-sm">
-                      <Sparkles className="w-4 h-4 text-[#F3D7A4]" />
-                    </div>
-                    <div className="bg-[#FBF8F3] border border-[#E8DCCF] p-3.5 rounded-2xl text-xs text-[#827164] flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[#6B1D2F] animate-ping" />
-                      <span>Styling your outfit...</span>
-                    </div>
+              {/* Thinking Indicator */}
+              {loading && (
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#7A2331] text-[#FDFBF7] flex items-center justify-center shrink-0 shadow-sm">
+                    <Sparkles className="w-4 h-4 text-[#F3D7A4]" />
                   </div>
-                )}
-                <div ref={messagesEndRef} />
+                  <div className="bg-[#FBF8F3] border border-[#E8DCCF] p-3.5 rounded-2xl text-xs text-[#8A7360] flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#7A2331] animate-ping" />
+                    <span>Styling your outfit...</span>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* INPUT BAR AT BOTTOM (Exact Reference Image 2) */}
+            <div className="pt-3 border-t border-[#E8DCCF]">
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask your stylist anything..."
+                  className="w-full py-3.5 pl-6 pr-24 rounded-full bg-[#FFFDF9] border border-[#E8DCCF] text-xs text-[#3D2417] placeholder-[#A89478] focus:outline-none focus:ring-1 focus:ring-[#7A2331]/40 shadow-inner"
+                />
+                <div className="absolute right-3 flex items-center gap-2">
+                  <button className="p-1.5 text-[#A89478] hover:text-[#7A2331] transition">
+                    <Paperclip className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleSend()}
+                    disabled={!input.trim() || loading}
+                    className="w-8.5 h-8.5 rounded-full bg-[#7A2331] hover:bg-[#5E1B26] disabled:opacity-40 text-[#FFFDF9] flex items-center justify-center transition shadow-sm"
+                  >
+                    <Send className="w-3.5 h-3.5 ml-0.5" />
+                  </button>
+                </div>
               </div>
-
-              {/* INPUT BAR AT BOTTOM (Exact Image 2) */}
-              <div className="pt-4 border-t border-[#E8DCCF]">
-                <div className="relative flex items-center">
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask your stylist anything..."
-                    className="w-full py-3.5 pl-6 pr-24 rounded-full bg-[#FFFDF9] border border-[#E6DCCF] text-xs text-[#3E3127] placeholder-[#A8988A] focus:outline-none focus:ring-1 focus:ring-[#6B1D2F]/40 shadow-inner"
-                  />
-                  <div className="absolute right-3 flex items-center gap-2">
-                    <button className="p-1.5 text-[#A8988A] hover:text-[#6B1D2F] transition">
-                      <Paperclip className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleSend()}
-                      disabled={!input.trim() || loading}
-                      className="w-8 h-8 rounded-full bg-[#6B1D2F] hover:bg-[#521422] disabled:opacity-40 text-[#FFFDF9] flex items-center justify-center transition shadow-sm"
-                    >
-                      <Send className="w-3.5 h-3.5 ml-0.5" />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-center gap-1.5 mt-2.5 text-[10px] text-[#A8988A]">
-                  <Lock className="w-3 h-3 text-[#A8988A]" />
-                  <span>Your conversations are private and secure</span>
-                </div>
+              <div className="flex items-center justify-center gap-1.5 mt-2.5 text-[10px] text-[#A89478]">
+                <Lock className="w-3 h-3 text-[#A89478]" />
+                <span>Your conversations are private and secure</span>
               </div>
             </div>
           </div>
@@ -478,25 +406,25 @@ export default function ChatbotScreen() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-sm bg-[#F7F1E8] h-full shadow-2xl z-50 flex flex-col border-r border-[#E2D6C6]"
+              className="relative w-full max-w-sm bg-[#F9F3EA] h-full shadow-2xl z-50 flex flex-col border-r border-[#E6D5B8]"
             >
-              <div className="p-4 border-b border-[#E2D6C6] flex items-center justify-between bg-[#F5EFE6]">
+              <div className="p-4 border-b border-[#E6D5B8] flex items-center justify-between bg-[#F3E6CF]">
                 <div className="flex items-center gap-2">
-                  <History className="w-5 h-5 text-[#6B1D2F]" />
-                  <span className="font-serif font-bold text-[#3E3127] text-base">Your Conversations</span>
+                  <History className="w-5 h-5 text-[#7A2331]" />
+                  <span className="font-serif font-bold text-[#3D2417] text-base">Your Conversations</span>
                 </div>
                 <button
                   onClick={() => setIsHistoryOpen(false)}
-                  className="p-1.5 text-[#857467] hover:text-[#3E3127] rounded-full hover:bg-[#E7DCD0]"
+                  className="p-1.5 text-[#8A7360] hover:text-[#3D2417] rounded-full hover:bg-[#EBDBC0]"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="p-3 border-b border-[#E2D6C6]">
+              <div className="p-3 border-b border-[#E6D5B8]">
                 <button
                   onClick={handleNewChat}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#6B1D2F] hover:bg-[#521422] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#7A2331] hover:bg-[#5E1B26] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Start New Conversation</span>
@@ -506,9 +434,9 @@ export default function ChatbotScreen() {
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 {sessions.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-48 text-center p-4">
-                    <MessageSquare className="w-8 h-8 text-[#A8988A] mb-2" />
-                    <p className="text-[#615246] text-xs font-medium">No previous conversations yet.</p>
-                    <p className="text-[#857467] text-[11px] mt-1">Start chatting with the AI stylist to save history!</p>
+                    <MessageSquare className="w-8 h-8 text-[#A89478] mb-2" />
+                    <p className="text-[#6B5645] text-xs font-medium">No previous conversations yet.</p>
+                    <p className="text-[#8A7360] text-[11px] mt-1">Start chatting with the AI stylist to save history!</p>
                   </div>
                 ) : (
                   sessions.map((s) => {
@@ -519,17 +447,17 @@ export default function ChatbotScreen() {
                         onClick={() => handleSelectSession(s)}
                         className={`w-full text-left p-3 rounded-xl border transition-all flex flex-col gap-1 ${
                           isActive
-                            ? 'bg-[#F2E3E5] border-[#E8C5BA] shadow-xs'
-                            : 'bg-[#FDFBF7] border-[#E2D6C6] hover:border-[#6B1D2F]/30 hover:bg-[#F7F1E8]'
+                            ? 'bg-[#7a2331]/10 border-[#E8C5BA] shadow-xs'
+                            : 'bg-[#FDFBF7] border-[#E6D5B8] hover:border-[#7A2331]/30 hover:bg-[#F3E6CF]/50'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className={`text-xs font-bold truncate ${isActive ? 'text-[#6B1D2F]' : 'text-[#3E3127]'}`}>
+                          <span className={`text-xs font-bold truncate ${isActive ? 'text-[#7A2331]' : 'text-[#3D2417]'}`}>
                             {s.title || 'Styling Conversation'}
                           </span>
-                          {isActive && <span className="w-2 h-2 rounded-full bg-[#6B1D2F] shrink-0" />}
+                          {isActive && <span className="w-2 h-2 rounded-full bg-[#7A2331] shrink-0" />}
                         </div>
-                        <span className="text-[10px] text-[#857467] font-medium">
+                        <span className="text-[10px] text-[#8A7360] font-medium">
                           {s.updated_at ? new Date(s.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       </button>
