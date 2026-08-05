@@ -13,6 +13,7 @@ import {
   PanelBottom,
   Gem,
   Layers,
+  Wand2,
 } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -137,6 +138,12 @@ export default function DashboardScreen() {
       route: '/upload',
     },
     {
+      title: 'Build Outfit',
+      desc: 'Mix and match',
+      icon: Wand2,
+      route: '/build-outfit',
+    },
+    {
       title: 'Chatbot',
       desc: 'Ask the AI stylist',
       icon: MessageCircle,
@@ -225,7 +232,7 @@ export default function DashboardScreen() {
         </div>
 
         {/* ================= QUICK ACTIONS ================= */}
-        <div className="grid grid-cols-3 gap-4 mb-10">
+        <div className="grid grid-cols-4 gap-4 mb-10">
           {quickActions.map((action) => (
             <button
               key={action.title}

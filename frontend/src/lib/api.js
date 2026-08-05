@@ -190,3 +190,13 @@ export async function visualizeOutfit(
     body: form,
   });
 }
+
+
+// POST /build-outfit -> { outfit, matched_item_count }
+export async function buildOutfit(preferences) {
+  return request("/build-outfit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(preferences),
+  });
+}

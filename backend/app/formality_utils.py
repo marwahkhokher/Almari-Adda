@@ -35,6 +35,7 @@ FORMALITY_MAP = {
     "culottes": "semi-formal",
     "jumpsuit": "semi-formal",
     "trousers": "semi-formal",
+    "dress": "semi-formal",   # generic fallback if no more specific dress type or explicit formality word is present
 
     # Formal
     "kurta": "formal",
@@ -59,9 +60,31 @@ FORMALITY_MAP = {
     "shalwar kameez": "formal",
 }
 
-
 def get_formality(subcategory):
-    return FORMALITY_MAP.get(subcategory.lower(), "unknown")
+    subcategory = subcategory.lower()
+
+    # Exact match first (fastest, most reliable)
+    if subcategory in FORMALITY_MAP:
+        return FORMALITY_MAP[subcategory]
+
+    # Explicit formality words in the subcategory itself take priority
+    # over guessing from garment type - e.g. "formal dress" should
+    # resolve to "formal" even though "dress" alone isn't in the map.
+    if "semi-formal" in subcategory or "semi formal" in subcategory:
+        return "semi-formal"
+    if "formal" in subcategory:
+        return "formal"
+    if "casual" in subcategory:
+        return "casual"
+
+    # Fall back to substring matching against known garment keywords,
+    # longest keys first so "cocktail dress" beats a shorter partial
+    # match before a generic one would apply.
+    for key in sorted(FORMALITY_MAP, key=len, reverse=True):
+        if key in subcategory:
+            return FORMALITY_MAP[key]
+
+    return "unknown"
 
 
 def is_formality_compatible(formality_a, formality_b):

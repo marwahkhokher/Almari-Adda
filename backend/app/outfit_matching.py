@@ -6,10 +6,8 @@ from app.embedding_utils import cosine_similarity
 
 logger = logging.getLogger(__name__)
 
-SINGLE_PIECE_SUBCATEGORIES = {
+SINGLE_PIECE_KEYWORDS = (
     "dress",
-    "cocktail dress",
-    "evening dress",
     "gown",
     "abaya",
     "saree",
@@ -21,7 +19,12 @@ SINGLE_PIECE_SUBCATEGORIES = {
     "sherwani",
     "suit",
     "tuxedo",
-}
+)
+
+
+def _is_single_piece(subcategory: str) -> bool:
+    subcategory = subcategory.lower()
+    return any(keyword in subcategory for keyword in SINGLE_PIECE_KEYWORDS)
 
 
 def get_valid_outfits(items, prompt_embedding=None):
@@ -109,7 +112,7 @@ def get_valid_outfits(items, prompt_embedding=None):
     # Case 2: single-piece outfits (dress, abaya, saree, kurta, etc.)
     for item in items:
         subcategory = item.get("subcategory", "").lower()
-        if subcategory in SINGLE_PIECE_SUBCATEGORIES:
+        if _is_single_piece(subcategory):
             formality = get_formality(subcategory)
             similarity = _score([item.get("embedding")])
             valid_outfits.append({
