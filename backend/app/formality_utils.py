@@ -70,6 +70,7 @@ FORMALITY_MAP = {
     "shalwar kameez": "formal",
 }
 
+def get_formality(subcategory):
     if not subcategory or not isinstance(subcategory, str):
         return "casual"
 
