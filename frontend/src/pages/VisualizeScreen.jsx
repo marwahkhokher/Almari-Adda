@@ -75,11 +75,30 @@ function Hanger() {
 /* Matches the other screens' NAV_ITEMS. "Visualizer" points at
    /visualize — this screen. */
 const NAV_ITEMS = [
-  { label: 'Closet', icon: Home, action: 'closet' },
-  { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
-  { label: 'Upload Item', icon: CloudUpload, route: '/upload' },
-  { label: 'Build Outfit', icon: Hanger, route: '/build-outfit' },
-  { label: 'Stylist AI', icon: Wand2, route: '/chatbot' },
+  {
+    label: 'Dashboard',
+    route: '/dashboard',
+  },
+  {
+    label: 'Closet',
+    route: '/closet',
+  },
+  {
+    label: 'Visualizer',
+    route: '/visualize',
+  },
+  {
+    label: 'Upload Item',
+    route: '/upload',
+  },
+  {
+    label: 'Build Outfit',
+    route: '/build-outfit',
+  },
+  {
+    label: 'AI Stylist',
+    route: '/chatbot',
+  },
 ];
 
 export default function VisualizeScreen() {
@@ -485,17 +504,7 @@ export default function VisualizeScreen() {
 
                   <div className="flex items-center gap-2">
                     <div className="relative">
-                      <button
-                        onClick={() => { setShowFilterMenu(v => !v); setShowSortMenu(false); }}
-                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border transition ${
-                          favoritesOnly
-                            ? 'bg-[#7a2331] text-white border-[#7a2331]'
-                            : 'bg-white border-[#e6d5b8] text-[#6b5645] hover:border-[#7a2331] hover:text-[#7a2331]'
-                        }`}
-                      >
-                        <SlidersHorizontal className="w-3.5 h-3.5" />
-                        Filter
-                      </button>
+                      
                       {showFilterMenu && (
                         <div className="absolute right-0 mt-2 w-48 bg-white border border-[#e6d5b8] rounded-xl shadow-lg p-2 z-20">
                           <button

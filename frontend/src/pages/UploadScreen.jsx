@@ -55,11 +55,30 @@ function Hanger() {
 /* Matches the other screens' NAV_ITEMS (5 entries — Sidebar2's
    buttonPositions array only has 5 slots). */
 const NAV_ITEMS = [
-  { label: 'Closet', icon: Home, action: 'closet' },
-  { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
-  { label: 'Upload Item', icon: CloudUpload, route: '/upload' },
-  { label: 'Build Outfit', icon: Hanger, route: '/build-outfit' },
-  { label: 'Stylist AI', icon: Wand2, route: '/chatbot' },
+  {
+    label: 'Dashboard',
+    route: '/dashboard',
+  },
+  {
+    label: 'Closet',
+    route: '/closet',
+  },
+  {
+    label: 'Visualizer',
+    route: '/visualize',
+  },
+  {
+    label: 'Upload Item',
+    route: '/upload',
+  },
+  {
+    label: 'Build Outfit',
+    route: '/build-outfit',
+  },
+  {
+    label: 'AI Stylist',
+    route: '/chatbot',
+  },
 ];
 
 // Best-effort swatch color for a detected color name that isn't in COLOR_OPTIONS —
@@ -324,7 +343,7 @@ const userName =
   <div className="text-center">
 
     <h1 className="text-3xl md:text-4xl font-display font-bold text-[#3d2417]">
-      AI <span className="text-[#7a2331]">Stylist</span>
+      Upload <span className="text-[#7a2331]">Your Items</span>
     </h1>
 
     <div className="flex items-center justify-center gap-2 mt-2.5 mb-2">

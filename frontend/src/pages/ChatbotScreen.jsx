@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Check, Shirt, RotateCcw } from "lucide-react";
 import {
   Sparkles,
   Paperclip,
@@ -8,6 +9,7 @@ import {
   History,
   Plus,
   MessageSquare,
+  ShoppingBag,
   X,
   Lock,
   CheckCheck,
@@ -24,8 +26,8 @@ import {
   sendChatMessage,
   getUserChatSessions,
   getChatSessionHistory,
+  incrementTimesWorn,
 } from '../lib/api.js';
-
 function Hanger() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -38,11 +40,36 @@ function Hanger() {
 /* Matches VisualizeScreen's NAV_ITEMS (5 entries — Sidebar2's
    buttonPositions array only has 5 slots). */
 const NAV_ITEMS = [
-  { label: 'Closet', icon: Home, action: 'closet' },
-  { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
-  { label: 'Upload Item', icon: CloudUpload, route: '/upload' },
-  { label: 'Build Outfit', icon: Hanger, route: '/build-outfit' },
-  { label: 'Stylist AI', icon: Wand2, route: '/chatbot' },
+  {
+    label: 'Dashboard',
+    icon: Home,
+    route: '/dashboard',
+  },
+  {
+    label: 'Closet',
+    icon: ShoppingBag,
+    route: '/closet',
+  },
+  {
+    label: 'Visualizer',
+    icon: Sparkles,
+    route: '/visualize',
+  },
+  {
+    label: 'Upload Item',
+    icon: CloudUpload,
+    route: '/upload',
+  },
+  {
+    label: 'Build Outfit',
+    icon: Hanger,
+    route: '/build-outfit',
+  },
+  {
+    label: 'AI Stylist',
+    icon: Wand2,
+    route: '/chatbot',
+  },
 ];
 
 export default function ChatbotScreen() {
@@ -86,6 +113,8 @@ export default function ChatbotScreen() {
   const [sessions, setSessions] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const messagesEndRef = useRef(null);
+  const [wornOutfitIds, setWornOutfitIds] = useState(new Set());
+const [wearingOutfitId, setWearingOutfitId] = useState(null);
 
   const initialMessage = {
     id: 'welcome',
@@ -216,6 +245,29 @@ export default function ChatbotScreen() {
     setMessages([{ ...initialMessage, id: Date.now().toString() }]);
     setIsHistoryOpen(false);
   };
+  const handleWearOutfit = async (outfit, outfitKey) => {
+  const itemIds = (outfit.items || [])
+    .map((item) => item.id)
+    .filter(Boolean);
+
+  if (itemIds.length === 0 || wornOutfitIds.has(outfitKey)) {
+    return;
+  }
+
+  setWearingOutfitId(outfitKey);
+
+  try {
+    await incrementTimesWorn(itemIds);
+    setWornOutfitIds((prev) => new Set(prev).add(outfitKey));
+  } catch (err) {
+    console.error("Failed to log worn outfit", err);
+    alert("Could not log this outfit as worn.");
+  } finally {
+    setWearingOutfitId(null);
+  }
+};
+
+
 
   const presetChips = [
     { label: 'Dinner date', icon: '🍽️' },
@@ -334,11 +386,20 @@ export default function ChatbotScreen() {
                         <Sparkles className="h-4 w-4 text-[#f3d7a4]" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="mb-1 text-sm font-bold text-[#7a2331]">AI Stylist</span>
-                        <div className="relative whitespace-pre-line rounded-2xl rounded-tl-sm border border-[#e6d5b8] bg-white p-4 text-base font-medium leading-relaxed text-[#3d2417] shadow-sm">
-                          {msg.text}
-                          <span className="mt-2 block text-right text-xs text-[#a89478]">{msg.timestamp}</span>
-                        </div>
+                        <span className="mb-1 text-sm font-bold text-[#7a2331]">
+  AI Stylist
+</span>
+
+{(!msg.outfitSuggestions ||
+  msg.outfitSuggestions.length === 0) && (
+  <div className="relative whitespace-pre-line rounded-2xl rounded-tl-sm border border-[#e6d5b8] bg-white p-4 text-base font-medium leading-relaxed text-[#3d2417] shadow-sm">
+    {msg.text}
+
+    <span className="mt-2 block text-right text-xs text-[#a89478]">
+      {msg.timestamp}
+    </span>
+  </div>
+)}
 
                         {msg.id === 'welcome' && (
                           <div className="mt-3 flex flex-wrap gap-2.5">
@@ -357,7 +418,12 @@ export default function ChatbotScreen() {
 
                         {msg.outfitSuggestions && msg.outfitSuggestions.length > 0 && (
                           <div className="mt-3 space-y-3">
-                            {msg.outfitSuggestions.map((outfit, idx) => (
+                            {msg.outfitSuggestions.map((outfit, idx) => {
+                                  const outfitKey = `${msg.id}-${idx}`;
+                                  const isWorn = wornOutfitIds.has(outfitKey);
+                                  const isWearing = wearingOutfitId === outfitKey;
+
+                                  return (
                               <div key={idx} className="rounded-2xl border border-[#e6d5b8] bg-white p-4 shadow-sm">
                                 <span className="mb-2 block text-sm font-bold text-[#7a2331]">Suggested Outfit</span>
                                 <div className="flex gap-3 overflow-x-auto pb-2">
@@ -373,8 +439,30 @@ export default function ChatbotScreen() {
                                 <p className="mt-2 rounded-xl border border-[#e6d5b8] bg-[#FCF6EC] p-2.5 text-sm leading-relaxed text-[#6b5645]">
                                   {outfit.reasoning}
                                 </p>
+                                <div className="flex gap-2 mt-3">
+  <button
+    onClick={() => handleWearOutfit(outfit, outfitKey)}
+    disabled={isWorn || isWearing}
+    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#7a2331] text-white py-2 text-sm font-semibold hover:bg-[#631b28] disabled:opacity-60"
+  >
+    {isWorn ? (
+      <>
+        <Check className="w-4 h-4" />
+        Worn
+      </>
+    ) : isWearing ? (
+      <>Logging...</>
+    ) : (
+      <>
+        <Shirt className="w-4 h-4" />
+        Wear Outfit
+      </>
+    )}
+  </button>
+</div>
                               </div>
-                            ))}
+                            );
+})}
                           </div>
                         )}
                       </div>

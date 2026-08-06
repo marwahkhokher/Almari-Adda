@@ -253,6 +253,13 @@ export default function ItemDetailModal({ item, onClose, onDeleted, onUpdated })
                     </span>
                   </div>
 
+                  <div className="flex justify-between py-2 border-b border-neutral-100">
+  <span className="text-neutral-500">Times worn</span>
+  <span className="font-medium text-neutral-800">
+    {metadata?.times_worn ?? 0}
+  </span>
+</div>
+
                   <div className="py-2 border-b border-neutral-100">
                     <span className="text-neutral-500 block mb-1">
                       Notes
