@@ -181,12 +181,11 @@ export default function Sidebar({
                 active:scale-[0.99]
                 ${
                   isActive
-                    ? `
-                      border-[#7A5536]
-                      border-[2px]
-                      brightness-[1.04]
-                      shadow-[0_0_0_1px_rgba(122,85,54,.45),0_0_16px_rgba(74,44,29,.35),inset_0_0_14px_rgba(255,255,255,.08)]
-                    `
+  ? `
+      border-[#7A5536]
+      border-[2px]
+      shadow-[0_0_12px_rgba(74,44,29,.25)]
+    `
                     : `
                       border-transparent
                       hover:border-[#8B6444]
@@ -202,29 +201,30 @@ export default function Sidebar({
 
 
                 {/* Active left marker */}
-                {/* Active border */}
-                  <span
-                    className={`
-                      pointer-events-none
-                      absolute
-                      inset-0
-                      rounded-[10px]
-                      transition-opacity
-                      duration-300
-                      ${
-                        isActive
-                          ? 'opacity-100'
-                          : 'opacity-0'
-                      }
-                    `}
-                  >
-                    <span className="absolute left-0 top-[15%] bottom-[15%] w-[5px] rounded-r-full bg-gradient-to-b from-[#9C7350] via-[#6B4329] to-[#3F2618]" />
+               {/* Active overlay */}
+<span
+  className={`
+    pointer-events-none
+    absolute
+    inset-0
+    rounded-[10px]
+    transition-opacity
+    duration-300
+    ${isActive ? 'opacity-100' : 'opacity-0'}
+  `}
+>
+  {/* Visible selected-state overlay */}
+  <span className="absolute inset-0 rounded-[10px] bg-[#3b2113]/30" />
 
-                    <span className="absolute left-2 right-2 top-0 h-[2px] rounded-full bg-[#F4D48B] shadow-[0_0_8px_rgba(255,220,120,.9)]" />
+  {/* Left accent */}
+  <span className="absolute bottom-[15%] left-0 top-[15%] w-[5px] rounded-r-full bg-gradient-to-b from-[#9C7350] via-[#6B4329] to-[#3F2618]" />
 
-                    <span className="absolute left-2 right-2 bottom-0 h-[2px] rounded-full bg-[#F4D48B] shadow-[0_0_8px_rgba(255,220,120,.7)]" />
-                  </span>
+  {/* Top highlight */}
+  <span className="absolute left-2 right-2 top-0 h-[2px] rounded-full bg-[#F4D48B] shadow-[0_0_8px_rgba(255,220,120,.9)]" />
 
+  {/* Bottom highlight */}
+  <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-[#F4D48B] shadow-[0_0_8px_rgba(255,220,120,.7)]" />
+</span>
                 {/* Hover sheen */}
                 <span className="pointer-events-none absolute inset-y-0 left-[-40%] w-[35%] skew-x-[-16deg] bg-white/8 opacity-0 transition-all duration-500 group-hover:left-[115%] group-hover:opacity-100" />
               </button>
