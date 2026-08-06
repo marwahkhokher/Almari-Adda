@@ -1,17 +1,17 @@
 """
 Thin wrapper around the Groq API for text and vision completions.
 Isolates all Groq SDK/HTTP details from the rest of the chatbot module.
+Uses a shared connection pool and max_tokens constraint for sub-second responses.
 """
 import logging
 from typing import Optional
-
 import httpx
-
 from app.chatbot.config import config
 
 logger = logging.getLogger(__name__)
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
 
 def _strip_json_fences(text: str) -> str:
     """Strip markdown code fences some models wrap JSON responses in."""
@@ -26,9 +26,8 @@ def _strip_json_fences(text: str) -> str:
     return text
 
 
-
 class GroqClient:
-    """Synchronous-friendly async client for Groq chat completions."""
+    """Optimized async client for Groq chat completions."""
 
     def __init__(self) -> None:
         if not config.GROQ_API_KEY:
@@ -37,6 +36,12 @@ class GroqClient:
             "Authorization": f"Bearer {config.GROQ_API_KEY}",
             "Content-Type": "application/json",
         }
+        self._client: Optional[httpx.AsyncClient] = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=10.0)
+        return self._client
 
     async def complete_text(self, prompt: str, system: Optional[str] = None) -> str:
         """Send a plain text prompt to the Groq text model."""
@@ -49,6 +54,7 @@ class GroqClient:
             "model": config.GROQ_TEXT_MODEL,
             "messages": messages,
             "temperature": 0.4,
+            "max_tokens": 150,
         }
         return await self._send(payload)
 
@@ -66,18 +72,17 @@ class GroqClient:
                 }
             ],
             "temperature": 0.2,
+            "max_tokens": 200,
         }
         return await self._send(payload)
 
     async def _send(self, payload: dict) -> str:
+        client = self._get_client()
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    GROQ_API_URL, headers=self._headers, json=payload
-                )
-                response.raise_for_status()
-                data = response.json()
-                return _strip_json_fences(data["choices"][0]["message"]["content"])
+            response = await client.post(GROQ_API_URL, headers=self._headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            return _strip_json_fences(data["choices"][0]["message"]["content"])
         except httpx.HTTPStatusError as e:
             logger.error("Groq API error: %s - %s", e.response.status_code, e.response.text)
             raise
