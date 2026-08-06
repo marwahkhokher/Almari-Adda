@@ -6,7 +6,7 @@ import {
   ArrowUpDown, LayoutGrid, List, ShoppingBag,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { getCatalogue, visualizeOutfit } from '../lib/api.js';
+import { getCatalogue, visualizeOutfit, pollJob, getJobStatus } from '../lib/api.js';
 import Sidebar from '../components/Sidebar.jsx';
 
 const CLOTHING_TAXONOMY = {
@@ -21,7 +21,9 @@ const CLOTHING_TAXONOMY = {
 
 const SUBCATEGORY_TO_CATEGORY = {};
 Object.entries(CLOTHING_TAXONOMY).forEach(([category, subs]) => {
-  subs.forEach(sub => { SUBCATEGORY_TO_CATEGORY[sub] = category; });
+  subs.forEach((sub) => {
+    SUBCATEGORY_TO_CATEGORY[sub] = category;
+  });
 });
 
 const parentCategories = [
@@ -79,6 +81,24 @@ export default function VisualizeScreen() {
       }
     };
     fetchCatalogue();
+
+    // Recover active try-on job state if page was refreshed mid-process
+    const storedJobId = localStorage.getItem("tryon_job_id");
+    if (storedJobId) {
+      setIsGenerating(true);
+      pollJob(storedJobId)
+        .then((result) => {
+          if (result?.visualization_url) {
+            setResultImageUrl(result.visualization_url);
+          }
+          localStorage.removeItem("tryon_job_id");
+        })
+        .catch((err) => {
+          console.error("Failed to recover try-on job", err);
+          localStorage.removeItem("tryon_job_id");
+        })
+        .finally(() => setIsGenerating(false));
+    }
   }, []);
 
   const handlePhotoUpload = e => {
@@ -154,10 +174,20 @@ export default function VisualizeScreen() {
     try {
       const itemIds = selectedItems.map(i => i.id);
       const response = await visualizeOutfit(itemIds, gender, personPhotoFile);
-      setResultImageUrl(response.visualization_url);
+      if (response?.job_id) {
+        localStorage.setItem("tryon_job_id", response.job_id);
+        const result = await pollJob(response.job_id);
+        if (result?.visualization_url) {
+          setResultImageUrl(result.visualization_url);
+        }
+        localStorage.removeItem("tryon_job_id");
+      } else if (response?.visualization_url) {
+        setResultImageUrl(response.visualization_url);
+      }
     } catch (error) {
       console.error('Visualization failed', error);
       setGenError(error.message || 'Failed to generate visualization');
+      localStorage.removeItem("tryon_job_id");
     } finally {
       setIsGenerating(false);
     }

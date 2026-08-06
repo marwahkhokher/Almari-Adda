@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, Check, Trash2 } from 'lucide-react';
-import { getItemMetadata, updateItemMetadata, getOutfitSuggestions, deleteItem } from '../lib/api.js';
+import { getItemMetadata, updateItemMetadata, updateItemCategory, getOutfitSuggestions, deleteItem } from '../lib/api.js';
 
 const SEASON_OPTIONS = ['spring', 'summer', 'fall', 'winter', 'all seasons'];
 
-export default function ItemDetailModal({ item, onClose, onDeleted }) {
+const CLOTHING_TAXONOMY = {
+  top: ['t-shirt', 'blouse', 'sweater', 'hoodie', 'blazer', 'jacket'],
+  bottom: ['jeans', 'trousers', 'shorts', 'skirt'],
+  dress: ['casual dress', 'formal dress'],
+  'eastern wear': ['shalwar kameez', 'kurta'],
+  other: [],
+};
+
+const CATEGORY_OPTIONS = Object.keys(CLOTHING_TAXONOMY);
+
+export default function ItemDetailModal({ item, onClose, onDeleted, onUpdated }) {
   const [metadata, setMetadata] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({});
@@ -38,6 +48,8 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
           color: data.color || '',
           season: data.season || [],
           notes: data.notes || '',
+          category: item.category || '',
+          subcategory: item.subcategory || '',
         });
       })
       .catch((err) => console.error('Failed to load metadata', err));
@@ -80,14 +92,27 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
     setSaving(true);
 
     try {
+      const normalizedColor = form.color.trim().toLowerCase();
+
       const updated = await updateItemMetadata(item.id, {
-        color: form.color,
+        color: normalizedColor,
         season: form.season,
         notes: form.notes,
       });
 
+      await updateItemCategory(item.id, {
+        category: form.category,
+        subcategory: form.subcategory,
+      });
+
       setMetadata(updated);
       setIsEditing(false);
+
+      onUpdated?.(item.id, {
+        color: normalizedColor,
+        category: form.category,
+        subcategory: form.subcategory,
+      });
     } catch (err) {
       console.error('Failed to save metadata', err);
     } finally {
@@ -116,7 +141,7 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
       <motion.div
         className="fixed inset-0 z-50 flex items-center justify-center p-6"
         style={{
-          backgroundColor: 'rgba(244, 192, 209, 0.35)',
+          backgroundColor: 'rgba(186, 162, 138, 0.28)',
           backdropFilter: 'blur(8px)',
         }}
         initial={{ opacity: 0 }}
@@ -135,7 +160,7 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 bg-white/90 rounded-full hover:bg-pink-50 transition"
+            className="absolute top-4 right-4 z-10 p-2 bg-white/90 rounded-full hover:bg-stone-100 transition"
           >
             <X className="w-5 h-5 text-neutral-600" />
           </button>
@@ -147,7 +172,7 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
             className="grid grid-cols-1 md:grid-cols-2"
           >
             {/* IMAGE */}
-            <div className="bg-pink-50 flex items-center justify-center p-8">
+            <div className="bg-stone-100 flex items-center justify-center p-8">
               <img
                 src={item.image_url}
                 alt={item.subcategory || item.category}
@@ -161,7 +186,7 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
               {/* TITLE */}
               <div className="flex items-start justify-between pr-12">
                 <div>
-                  <p className="text-xs font-semibold text-pink-600 uppercase tracking-wider mb-1">
+                  <p className="text-xs font-semibold text-[#8B6B4A] uppercase tracking-wider mb-1">
                     {item.category}
                   </p>
 
@@ -254,7 +279,7 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
                             <img
                               src={pair.image_url}
                               alt={pair.subcategory || pair.category}
-                              className="w-16 h-16 object-contain bg-pink-50 rounded-lg"
+                              className="w-16 h-16 object-contain bg-stone-100 rounded-lg"
                             />
 
                             <p className="text-xs text-center mt-1 truncate capitalize">
@@ -270,6 +295,49 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
                 /* EDIT FORM */
                 <div className="space-y-3">
 
+                  <FormField label="Category">
+                    <select
+                      value={form.category}
+                      onChange={(e) => {
+                        const newCategory = e.target.value;
+                        const validSubs = CLOTHING_TAXONOMY[newCategory] || [];
+                        setForm({
+                          ...form,
+                          category: newCategory,
+                          subcategory: validSubs.includes(form.subcategory)
+                            ? form.subcategory
+                            : (validSubs[0] || ''),
+                        });
+                      }}
+                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm capitalize focus:outline-none focus:ring-2 focus:ring-[#A67C52]"
+                    >
+                      {CATEGORY_OPTIONS.map((cat) => (
+                        <option key={cat} value={cat} className="capitalize">
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+
+                  <FormField label="Subcategory">
+                    <select
+                      value={form.subcategory}
+                      onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
+                      disabled={(CLOTHING_TAXONOMY[form.category] || []).length === 0}
+                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm capitalize focus:outline-none focus:ring-2 focus:ring-[#A67C52] disabled:opacity-50"
+                    >
+                      {(CLOTHING_TAXONOMY[form.category] || []).length === 0 ? (
+                        <option value="">No subcategories</option>
+                      ) : (
+                        CLOTHING_TAXONOMY[form.category].map((sub) => (
+                          <option key={sub} value={sub} className="capitalize">
+                            {sub}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </FormField>
+
                   <FormField label="Color">
                     <input
                       type="text"
@@ -281,7 +349,7 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
                         })
                       }
                       placeholder="e.g. navy blue"
-                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#A67C52]"
                     />
                   </FormField>
 
@@ -294,7 +362,7 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
                           onClick={() => toggleSeason(s)}
                           className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize transition ${
                             form.season.includes(s)
-                              ? 'bg-pink-600 text-white'
+                              ? 'bg-[#8B6B4A] text-white'
                               : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
                           }`}
                         >
@@ -315,7 +383,7 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
                       }
                       placeholder="e.g. gift from mom, dry clean only"
                       rows={2}
-                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#A67C52]"
                     />
                   </FormField>
 
@@ -333,7 +401,7 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
                       type="button"
                       onClick={handleSave}
                       disabled={saving}
-                      className="flex-1 bg-pink-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-pink-700 transition disabled:opacity-60"
+                      className="flex-1 bg-[#8B6B4A] text-white py-2 rounded-lg text-sm font-medium hover:bg-[#70553A] transition disabled:opacity-60"
                     >
                       {saving ? 'Saving...' : 'Save'}
                     </button>
@@ -347,7 +415,7 @@ export default function ItemDetailModal({ item, onClose, onDeleted }) {
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
-                    className="p-2 text-neutral-400 hover:text-pink-600 rounded-full hover:bg-pink-50 transition"
+                    className="p-2 text-neutral-400 hover:text-[#8B6B4A] rounded-full hover:bg-stone-100 transition"
                     title="Edit details"
                   >
                     <Pencil className="w-5 h-5" />

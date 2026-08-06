@@ -1,16 +1,33 @@
-export default function ChatBubble({ message, isUser, timestamp }) {
+export default function ChatBubble({
+  message,
+  isUser,
+  timestamp,
+}) {
   return (
-    <div className={`flex w-full mb-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div
+      className={`mb-3 flex w-full ${
+        isUser ? 'justify-end' : 'justify-start'
+      }`}
+    >
       <div
-        className={`max-w-[85%] md:max-w-[75%] px-4 py-3 shadow-md ${
+        className={`max-w-[85%] px-4 py-3 shadow-md md:max-w-[75%] ${
           isUser
-            ? 'bg-pink-600 text-white rounded-2xl rounded-br-sm'
-            : 'bg-white text-neutral-900 border-2 border-pink-100 rounded-2xl rounded-bl-sm'
+            ? 'rounded-2xl rounded-br-sm bg-[#6B4329] text-white'
+            : 'rounded-2xl rounded-bl-sm border border-[#DDD0C1] bg-[#FFFBF5] text-[#38271F]'
         }`}
       >
-        <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap break-words">{message}</p>
+        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed md:text-base">
+          {message}
+        </p>
+
         {timestamp && (
-          <span className={`text-[10px] mt-1 block ${isUser ? 'text-pink-100' : 'text-neutral-400'}`}>
+          <span
+            className={`mt-1 block text-[10px] ${
+              isUser
+                ? 'text-[#E8D8C6]'
+                : 'text-[#9A8576]'
+            }`}
+          >
             {timestamp}
           </span>
         )}

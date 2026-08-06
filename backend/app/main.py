@@ -13,6 +13,7 @@ from datetime import date
 
 from app.chatbot.router import router as chatbot_router
 from app.item_metadata import router as item_metadata_router
+from app.filters import router as filters_router
 
 import requests
 import modal
@@ -47,6 +48,7 @@ app.add_middleware(
 
 app.include_router(chatbot_router)
 app.include_router(item_metadata_router)
+app.include_router(filters_router)
 
 _catalogue_cache = None
 
@@ -55,17 +57,27 @@ def root():
     return {"status": "Almari-Adda API is running"}
 
 
-@app.post("/upload")
-async def upload_clothing_item(file: UploadFile = File(...)):
+from app.jobs.db import create_job, get_job
+
+@app.get("/jobs/{job_id}")
+def get_job_status(job_id: str):
     """
-    Accepts a photo upload, runs it through the segmentation +
-    classification pipeline, uploads the segmented image to
-    Supabase storage, and saves the item's metadata to the
-    items table.
+    Returns current status and results of a queued background job.
+    Status can be: 'pending', 'processing', 'completed', 'failed'.
+    """
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@app.post("/upload")
+async def upload_clothing_item(file: UploadFile = File(...), sync: bool = False):
+    """
+    Accepts a photo upload. Enqueues a background job for ML segmentation
+    and classification, returning a job_id for state recovery.
     """
     global _catalogue_cache
-    # Save the incoming upload to a temp local path first - the
-    # pipeline function works off a file path, not raw bytes
     temp_dir = "temp_uploads"
     os.makedirs(temp_dir, exist_ok=True)
     temp_filename = f"{uuid.uuid4()}_{file.filename}"
@@ -74,6 +86,15 @@ async def upload_clothing_item(file: UploadFile = File(...)):
     with open(temp_path, "wb") as f:
         content = await file.read()
         f.write(content)
+
+    if not sync:
+        job = create_job(
+            job_type="clothing_upload",
+            payload={"temp_path": temp_path, "filename": file.filename},
+        )
+        if not job:
+            raise HTTPException(status_code=500, detail="Failed to enqueue upload job")
+        return {"job_id": job["id"], "status": "pending"}
 
     try:
         # Run the ML pipeline - segmentation + classification
@@ -245,21 +266,74 @@ def _download_image_bytes(url: str) -> bytes:
     return response.content
 
 
+def _generate_local_overlay(person_bytes: bytes, top_bytes: bytes = None, bottom_bytes: bytes = None, dress_bytes: bytes = None) -> bytes:
+    import io
+    from PIL import Image
+
+    person_img = Image.open(io.BytesIO(person_bytes)).convert("RGBA")
+    w, h = person_img.size
+
+    if dress_bytes:
+        dress_img = Image.open(io.BytesIO(dress_bytes)).convert("RGBA")
+        dress_img = dress_img.resize((int(w * 0.75), int(h * 0.7)), Image.LANCZOS)
+        offset_x = (w - dress_img.width) // 2
+        offset_y = int(h * 0.18)
+        person_img.alpha_composite(dress_img, (offset_x, offset_y))
+    else:
+        if top_bytes:
+            top_img = Image.open(io.BytesIO(top_bytes)).convert("RGBA")
+            top_img = top_img.resize((int(w * 0.65), int(h * 0.4)), Image.LANCZOS)
+            offset_x = (w - top_img.width) // 2
+            offset_y = int(h * 0.18)
+            person_img.alpha_composite(top_img, (offset_x, offset_y))
+        if bottom_bytes:
+            bottom_img = Image.open(io.BytesIO(bottom_bytes)).convert("RGBA")
+            bottom_img = bottom_img.resize((int(w * 0.6), int(h * 0.45)), Image.LANCZOS)
+            offset_x = (w - bottom_img.width) // 2
+            offset_y = int(h * 0.45)
+            person_img.alpha_composite(bottom_img, (offset_x, offset_y))
+
+    out_buf = io.BytesIO()
+    person_img.convert("RGB").save(out_buf, format="PNG")
+    return out_buf.getvalue()
+
+
 @app.post("/visualize")
 async def visualize_outfit(
     item_ids: str,
     model: str = "female",
     person_photo: UploadFile = File(None),
+    sync: bool = False,
 ):
     """
-    Renders a try-on visualization. Accepts a comma-separated list of
-    item IDs, auto-detects each item's category (top/bottom/dress),
-    and runs the appropriate Modal pipeline. If person_photo is
-    provided, uses that instead of the stock male/female model.
+    Enqueues a background try-on job for Modal GPU or local overlay,
+    returning a job_id for state recovery.
     """
     ids = [i.strip() for i in item_ids.split(",") if i.strip()]
     if not ids:
         raise HTTPException(status_code=400, detail="No item_ids provided")
+
+    person_photo_path = None
+    if person_photo:
+        temp_dir = "temp_uploads"
+        os.makedirs(temp_dir, exist_ok=True)
+        person_photo_path = os.path.join(temp_dir, f"person_{uuid.uuid4()}_{person_photo.filename}")
+        with open(person_photo_path, "wb") as f:
+            content = await person_photo.read()
+            f.write(content)
+
+    if not sync:
+        job = create_job(
+            job_type="outfit_visualization",
+            payload={
+                "item_ids": ids,
+                "model": model,
+                "person_photo_path": person_photo_path,
+            },
+        )
+        if not job:
+            raise HTTPException(status_code=500, detail="Failed to enqueue try-on job")
+        return {"job_id": job["id"], "status": "pending"}
 
     top_bytes = None
     bottom_bytes = None

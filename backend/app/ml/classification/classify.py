@@ -102,6 +102,39 @@ class ClothingClassifier:
             "all_predictions": results,
         }
 
+    def score_occasion_similarity(self, image_source: str, occasion: str) -> float:
+        """
+        OpenCLIP Zero-Shot Occasion Embedding Scorer.
+        Encodes the occasion prompt (e.g. 'clothing appropriate for date night')
+        and measures cosine similarity against the image embedding.
+        """
+        import io
+        import httpx
+
+        prompt = f"a photo of an outfit appropriate for {occasion}"
+        text_tokens = self.tokenizer([prompt])
+
+        try:
+            if image_source.startswith("http://") or image_source.startswith("https://"):
+                resp = httpx.get(image_source, timeout=5.0)
+                img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+            else:
+                img = Image.open(image_source).convert("RGB")
+
+            image_input = self.preprocess(img).unsqueeze(0)
+
+            with torch.no_grad():
+                img_features = self.model.encode_image(image_input)
+                img_features /= img_features.norm(dim=-1, keepdim=True)
+
+                text_features = self.model.encode_text(text_tokens)
+                text_features /= text_features.norm(dim=-1, keepdim=True)
+
+                sim = (img_features @ text_features.T).item()
+                return round(float(sim), 4)
+        except Exception:
+            return 0.5
+
     def get_embedding(self, image_path: str):
         """
         Returns the raw CLIP image embedding as a plain Python list,

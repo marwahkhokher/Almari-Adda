@@ -4,7 +4,13 @@ import {
   ArrowLeft, Search, Bell, HelpCircle, UploadCloud, Smartphone,
   Camera, Lightbulb, Tag, Lock, Sparkles, AlertCircle, CheckCircle,
 } from 'lucide-react';
-import { getCatalogue, uploadClothingItem, getItemMetadata } from '../lib/api.js';
+import {
+  getCatalogue,
+  uploadClothingItem,
+  getItemMetadata,
+  updateItemMetadata,
+  updateItemCategory,
+} from '../lib/api.js';
 import Sidebar from '../components/Sidebar.jsx';
 
 const CATEGORY_OPTIONS = {
@@ -185,12 +191,15 @@ export default function UploadScreen() {
     if (!photoPreview) return;
     setIsSaving(true);
     try {
-      // The item was already created by uploadClothingItem() when the photo was
-      // selected. TODO: if you add an "update item" endpoint, push the edited
-      // fields (category, subcategory, color, season) for uploadedItemId here
-      // before showing the success screen.
+      if (uploadedItemId) {
+        await updateItemCategory(uploadedItemId, { category, subcategory });
+        await updateItemMetadata(uploadedItemId, { color, season });
+      }
       await loadRecent();
       setIsSuccess(true);
+    } catch (error) {
+      console.error('Failed to save item', error);
+      setUploadError(error.message || 'Failed to save item. Please try again.');
     } finally {
       setIsSaving(false);
     }
