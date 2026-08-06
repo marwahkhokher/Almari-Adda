@@ -32,13 +32,9 @@ def process_clothing_upload(image_path: str, output_dir: str = "processed"):
     # Step 1: segment
     segment_clothing_item(image_path, segmented_path)
 
-    # Step 2: classify the segmented (background-removed) version,
-    # not the raw photo - cleaner signal for CLIP
+    # Step 2: classify the segmented image & extract embedding in a single CLIP pass
     classification_result = _classifier.classify(segmented_path)
-
-    # Step 3: compute the embedding on the same segmented image, so
-    # it's comparable to how classify() already reads it
-    embedding = _classifier.get_embedding(segmented_path)
+    embedding = classification_result["embedding"]
 
     return {
         "segmented_image_path": segmented_path,

@@ -9,8 +9,14 @@ CLOTHING_TAXONOMY = {
         "blouse",
         "sweater",
         "hoodie",
+        "shirt",
+    ],
+    "outerwear": [
         "blazer",
         "jacket",
+        "suit jacket",
+        "coat",
+        "cardigan",
     ],
     "bottom": [
         "jeans",
@@ -100,6 +106,7 @@ class ClothingClassifier:
         return {
             "top_prediction": results[0],
             "all_predictions": results,
+            "embedding": image_features.squeeze(0).tolist(),
         }
 
     def score_occasion_similarity(self, image_source: str, occasion: str) -> float:
