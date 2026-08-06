@@ -2,7 +2,6 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 
@@ -11,24 +10,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import {
   AlertTriangle,
-  Bell,
-  Camera,
-  ChevronDown,
-  ChevronRight,
   CloudUpload,
-  Grid2X2,
   Heart,
   Home,
-  LogOut,
   Menu,
-  MessageCircle,
-  Search,
   Shirt,
   Sparkles,
   User,
   Wand2,
-  X,
-  ShoppingBag,
 } from 'lucide-react';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -42,59 +31,23 @@ import ItemDetailModal from '../components/ItemDetailModal.jsx';
 import ProfileDrawer from './ProfileScreen.jsx';
 import Sidebar from '../components/Sidebar2.jsx';
 
-
 function Hanger() {
   return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M12 5.5C12 3.8 13.3 2.5 15 2.5C16.7 2.5 18 3.8 18 5.5C18 7.2 16.5 8 15.5 8.8L12 11"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-
-      <path
-        d="M12 11L3 17.5C2.4 18 2.8 19 3.6 19H20.4C21.2 19 21.6 18 21 17.5L12 11Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 5.5C12 3.8 13.3 2.5 15 2.5C16.7 2.5 18 3.8 18 5.5C18 7.2 16.5 8 15.5 8.8L12 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M12 11L3 17.5C2.4 18 2.8 19 3.6 19H20.4C21.2 19 21.6 18 21 17.5L12 11Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
     </svg>
   );
 }
 
+/* Matches Visualize/Chatbot/BuildOutfit's NAV_ITEMS (5 entries —
+   Sidebar2's buttonPositions array only has 5 slots). */
 const NAV_ITEMS = [
-  {
-    label: 'Closet',
-    icon: Home,
-    action: 'closet',
-  },
-  {
-    label: 'Visualizer',
-    icon: Sparkles,
-    route: '/visualize',
-  },
-  {
-    label: 'Upload Item',
-    icon: CloudUpload,
-    route: '/upload',
-  },
-  {
-    label: 'Build Outfit',
-    icon: Hanger,
-    route: '/build-outfit',
-  },
-  {
-    label: 'Stylist AI',
-    icon: Wand2,
-    route: '/chatbot',
-  },
+  { label: 'Closet', icon: Home, action: 'closet' },
+  { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
+  { label: 'Upload Item', icon: CloudUpload, route: '/upload' },
+  { label: 'Build Outfit', icon: Hanger, route: '/build-outfit' },
+  { label: 'Stylist AI', icon: Wand2, route: '/chatbot' },
 ];
 
 const CATEGORY_TABS = [
@@ -108,14 +61,20 @@ const CATEGORY_TABS = [
 ];
 const SEASON_OPTIONS = ['spring', 'summer', 'fall', 'winter'];
 
+/* Front-page shortcuts to the app's four main tools. */
+const QUICK_ACTIONS = [
+  { title: 'Visualizer', desc: 'Try on outfits', icon: Sparkles, route: '/visualize' },
+  { title: 'Upload Item', desc: 'Add to your closet', icon: CloudUpload, route: '/upload' },
+  { title: 'Build Outfit', desc: 'Mix & match looks', icon: Hanger, route: '/build-outfit' },
+  { title: 'Stylist AI', desc: 'Ask for style advice', icon: Wand2, route: '/chatbot' },
+];
+
 /* =========================================================
    HELPERS
 ========================================================= */
 
 function normalize(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase();
+  return String(value || '').trim().toLowerCase();
 }
 
 function getItemCategory(item) {
@@ -123,73 +82,27 @@ function getItemCategory(item) {
   const subcategory = normalize(item?.subcategory);
   const combined = `${category} ${subcategory}`;
 
-  if (
-    combined.includes('shalwar') ||
-    combined.includes('kameez') ||
-    combined.includes('kurta') ||
-    combined.includes('kurti') ||
-    combined.includes('eastern') ||
-    combined.includes('lehenga') ||
-    combined.includes('saree')
-  ) {
+  if (combined.includes('shalwar') || combined.includes('kameez') || combined.includes('kurta') || combined.includes('kurti') || combined.includes('eastern') || combined.includes('lehenga') || combined.includes('saree')) {
     return 'eastern';
   }
-
-  if (
-    combined.includes('dress') ||
-    combined.includes('gown') ||
-    combined.includes('jumpsuit')
-  ) {
+  if (combined.includes('dress') || combined.includes('gown') || combined.includes('jumpsuit')) {
     return 'dresses';
   }
-
-  if (
-    combined.includes('jean') ||
-    combined.includes('trouser') ||
-    combined.includes('pant') ||
-    combined.includes('skirt') ||
-    combined.includes('short') ||
-    combined.includes('bottom')
-  ) {
+  if (combined.includes('jean') || combined.includes('trouser') || combined.includes('pant') || combined.includes('skirt') || combined.includes('short') || combined.includes('bottom')) {
     return 'bottoms';
   }
-
-  if (
-    combined.includes('coat') ||
-    combined.includes('jacket') ||
-    combined.includes('blazer') ||
-    combined.includes('cardigan') ||
-    combined.includes('outerwear')
-  ) {
+  if (combined.includes('coat') || combined.includes('jacket') || combined.includes('blazer') || combined.includes('cardigan') || combined.includes('outerwear')) {
     return 'outerwear';
   }
-
-  if (
-    combined.includes('shirt') ||
-    combined.includes('blouse') ||
-    combined.includes('sweater') ||
-    combined.includes('hoodie') ||
-    combined.includes('top') ||
-    combined.includes('t-shirt')
-  ) {
+  if (combined.includes('shirt') || combined.includes('blouse') || combined.includes('sweater') || combined.includes('hoodie') || combined.includes('top') || combined.includes('t-shirt')) {
     return 'tops';
   }
-
   return 'other';
 }
 
 function getDisplayName(item) {
-  return (
-    item?.name ||
-    item?.subcategory ||
-    item?.category ||
-    'Closet item'
-  );
+  return item?.name || item?.subcategory || item?.category || 'Closet item';
 }
-
-/* =========================================================
-   SMALL UI COMPONENTS
-========================================================= */
 
 /* =========================================================
    DASHBOARD
@@ -207,56 +120,24 @@ export default function DashboardScreen() {
   const [activeColor, setActiveColor] = useState('all');
   const [activeSeason, setActiveSeason] = useState('all');
   const [openFilterDropdown, setOpenFilterDropdown] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] =
-    useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Horizontal scroller for the closet shelf — this replaces
-  // the old vertically-growing grid. Everything that doesn't
-  // fit in one row is reached with the arrow button, not by
-  // scrolling the page.
-  const closetScrollRef = useRef(null);
-  const desktopClosetScrollRef = useRef(null);
-  const bgImageRef = useRef(null);
-
-  const firstName =
-    user?.user_metadata?.first_name ||
-    user?.email?.split('@')?.[0] ||
-    'Maya';
-
-  const avatarUrl =
-    user?.user_metadata?.avatar_url ||
-    user?.user_metadata?.picture ||
-    null;
+  const firstName = user?.user_metadata?.first_name || user?.email?.split('@')?.[0] || 'Maya';
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
 
   const fetchCatalogue = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-
     try {
       const response = await getCatalogue();
-
-      const catalogueItems =
-        response?.items ??
-        response?.data ??
-        response ??
-        [];
-
-      setItems(
-        Array.isArray(catalogueItems)
-          ? catalogueItems
-          : []
-      );
+      const catalogueItems = response?.items ?? response?.data ?? response ?? [];
+      setItems(Array.isArray(catalogueItems) ? catalogueItems : []);
     } catch (fetchError) {
       console.error('Catalogue error:', fetchError);
-
-      setError(
-        fetchError?.message ||
-          'We could not load your closet.'
-      );
+      setError(fetchError?.message || 'We could not load your closet.');
     } finally {
       setIsLoading(false);
     }
@@ -275,113 +156,55 @@ export default function DashboardScreen() {
     }
   };
 
-  // DEV-ONLY: click anywhere on the page to log that spot's
-  // position as a percentage of the background image, so we
-  // can pin new elements to exact spots on the artwork.
-  useEffect(() => {
-    const handleCoordinateClick = (event) => {
-      const bgImage = bgImageRef.current;
-      if (!bgImage) return;
-
-      const rect = bgImage.getBoundingClientRect();
-      const leftPercent = ((event.clientX - rect.left) / rect.width) * 100;
-      const topPercent = ((event.clientY - rect.top) / rect.height) * 100;
-
-      console.log(
-        `[coord] left: ${leftPercent.toFixed(1)}%, top: ${topPercent.toFixed(1)}%`
-      );
-    };
-
-    document.addEventListener('click', handleCoordinateClick);
-    return () => document.removeEventListener('click', handleCoordinateClick);
-  }, []);
-
   const handleItemClick = (item) => {
     playWhoosh?.();
     setSelectedItem(item);
   };
 
-  const handleToggleFavorite = async (
-    event,
-    item
-  ) => {
+  const handleToggleFavorite = async (event, item) => {
     event.stopPropagation();
-
     const newFavoriteValue = !item.is_favorite;
 
     setItems((currentItems) =>
       currentItems.map((currentItem) =>
-        currentItem.id === item.id
-          ? {
-              ...currentItem,
-              is_favorite: newFavoriteValue,
-            }
-          : currentItem
+        currentItem.id === item.id ? { ...currentItem, is_favorite: newFavoriteValue } : currentItem
       )
     );
 
     try {
-      await toggleFavorite(
-        item.id,
-        newFavoriteValue
-      );
+      await toggleFavorite(item.id, newFavoriteValue);
     } catch (favoriteError) {
-      console.error(
-        'Failed to update favorite:',
-        favoriteError
-      );
-
+      console.error('Failed to update favorite:', favoriteError);
       setItems((currentItems) =>
         currentItems.map((currentItem) =>
-          currentItem.id === item.id
-            ? {
-                ...currentItem,
-                is_favorite: !newFavoriteValue,
-              }
-            : currentItem
+          currentItem.id === item.id ? { ...currentItem, is_favorite: !newFavoriteValue } : currentItem
         )
       );
     }
   };
 
   const colorOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(items.map((item) => item?.color).filter(Boolean))
-      ),
+    () => Array.from(new Set(items.map((item) => item?.color).filter(Boolean))),
     [items]
   );
 
-  // Item count per category tab — computed off the full,
-  // unfiltered list so the numbers stay stable regardless of
-  // which tab/color/season is currently selected.
   const categoryCounts = useMemo(() => {
     const counts = { all: items.length };
-
     CATEGORY_TABS.forEach((tab) => {
       if (tab.key !== 'all') counts[tab.key] = 0;
     });
-
     items.forEach((item) => {
       const category = getItemCategory(item);
       counts[category] = (counts[category] || 0) + 1;
     });
-
     return counts;
   }, [items]);
 
   const filteredItems = useMemo(() => {
-    const query = normalize(searchQuery);
-
     return items.filter((item) => {
       const category = getItemCategory(item);
-
-      const matchesCategory =
-        activeCategory === 'all' || category === activeCategory;
-
-      const matchesColor =
-        activeColor === 'all' ||
-        normalize(item?.color) === normalize(activeColor);
+      const matchesCategory = activeCategory === 'all' || category === activeCategory;
+      const matchesColor = activeColor === 'all' || normalize(item?.color) === normalize(activeColor);
 
       const itemSeasons = (item?.season || []).map((s) => normalize(s));
       const matchesSeason =
@@ -389,707 +212,315 @@ export default function DashboardScreen() {
         itemSeasons.includes(normalize(activeSeason)) ||
         itemSeasons.includes('all seasons');
 
-      const searchableText = normalize(
-        [
-          item?.name,
-          item?.category,
-          item?.subcategory,
-          item?.color,
-          item?.brand,
-          item?.occasion,
-        ]
-          .filter(Boolean)
-          .join(' ')
-      );
-
-      const matchesSearch = !query || searchableText.includes(query);
-
-      return (
-        matchesCategory &&
-        matchesColor &&
-        matchesSeason &&
-        matchesSearch
-      );
+      return matchesCategory && matchesColor && matchesSeason;
     });
-  }, [items, activeCategory, activeColor, activeSeason, searchQuery]);
+  }, [items, activeCategory, activeColor, activeSeason]);
 
-  const favoriteItems = useMemo(
-    () => items.filter((item) => item.is_favorite),
-    [items]
-  );
-
-  const recentItems = useMemo(
-    () => items.slice(0, 8),
-    [items]
-  );
+  const recentItems = useMemo(() => items.slice(0, 4), [items]);
 
   const handleNavItem = (navItem) => {
     setIsMobileSidebarOpen(false);
-
     if (navItem.route) {
-  console.log("Going to:", navItem.route);
-
-  navigate(navItem.route);
-
-  setTimeout(() => {
-    console.log("Current URL:", window.location.pathname);
-  }, 100);
-
-  return;
-}
-
-    if (navItem.action === 'favorites') {
-      const favoriteSection =
-        document.getElementById('favorites-section');
-
-      favoriteSection?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
+      navigate(navItem.route);
+      return;
     }
-
     if (navItem.action === 'closet') {
       setActiveCategory('all');
-
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
     }
-  };
-
-  const scrollClosetRight = () => {
-    closetScrollRef.current?.scrollBy({
-      left: 440,
-      behavior: 'smooth',
-    });
-  };
-
-  const scrollDesktopClosetRight = () => {
-    desktopClosetScrollRef.current?.scrollBy({
-      left: 440,
-      behavior: 'smooth',
-    });
   };
 
   return (
-  <div className="min-h-screen bg-[#f7f0e7] text-[#38271f]">
-    {/* =====================================================
-        MOBILE TOP BAR
-    ====================================================== */}
-
-    <div className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#dfd2c2] bg-[#f9f4ec]/95 px-4 backdrop-blur lg:hidden">
-      <button
-        type="button"
-        onClick={() => setIsMobileSidebarOpen(true)}
-        className="rounded-full p-2 text-[#4a2c1d]"
-        aria-label="Open menu"
-      >
-        <Menu size={22} />
-      </button>
-
-      <div className="font-serif text-lg font-semibold tracking-[0.14em] text-[#6a452a]">
-        ALMARI ADDA
+    <div className="min-h-screen bg-[#FBF3E7]">
+      {/* MOBILE TOP BAR */}
+      <div className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#e6d5b8] bg-[#FBF3E7]/95 px-4 backdrop-blur lg:hidden">
+        <button type="button" onClick={() => setIsMobileSidebarOpen(true)} className="rounded-full p-2 text-[#3d2417]" aria-label="Open menu">
+          <Menu size={22} />
+        </button>
+        <div className="font-serif text-lg font-semibold tracking-[0.14em] text-[#7a2331]">ALMARI ADDA</div>
+        <button
+  onClick={() => setIsProfileOpen(true)}
+  aria-label="Profile"
+  className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-[#e6d5b8] hover:bg-[#f3e6cf] text-[#3d2417] transition"
+>
+  <User className="w-4 h-4" />
+</button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setIsProfileOpen(true)}
-        className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[#d6c5b4] bg-white"
-      >
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={firstName}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <User size={17} />
-        )}
-      </button>
-    </div>
-
-    {/* =====================================================
-        MOBILE SIDEBAR
-    ====================================================== */}
-
-    <AnimatePresence>
-      {isMobileSidebarOpen && (
-        <>
-          <motion.button
-            type="button"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsMobileSidebarOpen(false)}
-            className="fixed inset-0 z-[70] bg-black/40 lg:hidden"
-            aria-label="Close menu"
-          />
-
-          <motion.div
-            initial={{ x: '-100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '-100%' }}
-            transition={{
-              type: 'spring',
-              damping: 28,
-              stiffness: 260,
-            }}
-            className="fixed bottom-0 left-0 top-0 z-[80] w-[260px] max-w-[88vw] lg:hidden"
-          >
-            <Sidebar
-              navItems={NAV_ITEMS}
-              onNavigate={handleNavItem}
-              onSignOut={handleSignOut}
-              onClose={() => setIsMobileSidebarOpen(false)}
-              mobile
+      {/* MOBILE SIDEBAR */}
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <>
+            <motion.button
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="fixed inset-0 z-[70] bg-black/40 lg:hidden"
+              aria-label="Close menu"
             />
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              className="fixed bottom-0 left-0 top-0 z-[80] w-[260px] max-w-[88vw] lg:hidden"
+            >
+              <Sidebar navItems={NAV_ITEMS} onNavigate={handleNavItem} onSignOut={handleSignOut} onClose={() => setIsMobileSidebarOpen(false)} mobile />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-    {/* =====================================================
-        DESKTOP SIDEBAR
-    ====================================================== */}
+      {/* DESKTOP SIDEBAR */}
+      <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-[260px] lg:block">
+        <Sidebar navItems={NAV_ITEMS} onNavigate={handleNavItem} onSignOut={handleSignOut} />
+      </aside>
 
-    <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-[260px] lg:block">
-      <Sidebar
-        navItems={NAV_ITEMS}
-        onNavigate={handleNavItem}
-        onSignOut={handleSignOut}
-      />
-    </aside>
+      {/* MAIN CONTENT — same shape as the other screens */}
+      <div className="flex min-h-screen flex-col pt-16 lg:ml-[260px] lg:pt-0">
+        <main className="flex-1 px-4 md:px-10 py-8 max-w-[1440px] w-full mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 mb-8">
+            <div className="hidden md:block" />
 
-    {/* =====================================================
-        MAIN BACKGROUND
-    ====================================================== */}
-
-    <main className="min-h-screen pt-16 lg:ml-[260px] lg:pt-0">
-      <div className="relative min-h-screen overflow-hidden">
-        {/* Generated background template */}
-        <img
-          ref={bgImageRef}
-          src="/dashboard-background.png"
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none fixed bottom-0 right-0 top-0 z-0 hidden h-screen w-[calc(100%-260px)] select-none object-fill lg:block"
-          style={{
-            width: 'calc(100vw - 260px)',
-          }}
-          draggable={false}
-        />
-
-        {/* Mobile background */}
-        <div className="fixed inset-0 z-0 bg-[#f8f0e6] lg:hidden" />
-
-        {/* All real content goes above the image */}
-       <div className="relative z-10 mx-auto min-h-screen max-w-[1600px] px-5 pb-12 pt-5 sm:px-8 lg:px-10 xl:px-14">
-
-          {/* =================================================
-              WELCOME AND ACTIONS
-          ================================================== */}
-
-          <section className="-mt-1 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <h1 className="font-serif text-[28px] font-semibold leading-none text-[#33231c] sm:text-[34px]">
-                Welcome back,{' '}
-                <span className="text-[#7d3f3d]">
-                  {firstName}
-                </span>
+            <div className="text-center">
+              <h1 className="text-3xl md:text-4xl font-display font-bold text-[#3d2417]">
+                Welcome back, <span className="text-[#7a2331]">{firstName}</span>
               </h1>
+              <div className="flex items-center justify-center gap-2 mt-2.5 mb-2">
+                <span className="w-8 h-px bg-[#c9a769]" />
+                <span className="w-1.5 h-1.5 rotate-45 bg-[#c9a769]" />
+                <span className="w-8 h-px bg-[#c9a769]" />
+              </div>
+              <p className="text-[#8a7360] text-sm">What are we wearing today?</p>
             </div>
-          </section>
 
-          {/* =================================================
-              MAIN CLOSET CONTENT AREA
-              (sits directly on the drawn card in the
-              background artwork — pulled up close to the
-              quick-actions row above, no large vertical gap)
-          ================================================== */}
+            <div className="flex items-center justify-center md:justify-end">
+              <button
+  onClick={() => setIsProfileOpen(true)}
+  aria-label="Profile"
+  className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-[#e6d5b8] hover:bg-[#f3e6cf] text-[#3d2417] transition"
+>
+  <User className="w-4 h-4" />
+</button>
+            </div>
+          </div>
 
-          <section className="mt-8 px-1 sm:px-4 lg:px-8 lg:min-h-[69vh] lg:pointer-events-none">
-            {/* Heading and controls */}
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between lg:pointer-events-auto" />
+          {/* QUICK ACTIONS */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            {QUICK_ACTIONS.map((action) => (
+              <button
+                key={action.title}
+                onClick={() => navigate(action.route)}
+                className="group flex items-center gap-3 bg-white border border-[#e6d5b8] rounded-2xl p-4 text-left shadow-sm hover:shadow-md hover:border-[#7a2331]/40 hover:-translate-y-0.5 transition-all"
+              >
+                <div className="w-10 h-10 shrink-0 rounded-xl bg-[#f3e6cf] flex items-center justify-center group-hover:bg-[#7a2331] transition-colors">
+                  <action.icon className="w-4.5 h-4.5 text-[#7a2331] group-hover:text-white transition-colors" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#3d2417] truncate">{action.title}</p>
+                  <p className="text-xs text-[#8a7360] truncate">{action.desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
 
-            {/* Categories (mobile) */}
-            <div className="mt-5 flex gap-3 overflow-x-auto pb-2 lg:hidden">
+          {/* CLOSET CARD — same border/shadow/radius treatment as the other screens */}
+          <div className="bg-[#FCF6EC] rounded-3xl border border-[#e6d5b8] shadow-[0_8px_30px_rgba(61,36,23,0.08)] p-4 md:p-6">
+            <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+              <div className="flex items-center gap-2 text-[#6b5645] text-sm">
+                <Shirt className="w-4 h-4 text-[#7a2331]" />
+                <span>{filteredItems.length} pieces in your almari</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenFilterDropdown((c) => (c === 'colors' ? null : 'colors'))}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-[#e6d5b8] bg-white text-[#6b5645] hover:border-[#7a2331] hover:text-[#7a2331] transition"
+                  >
+                    Colors <span className="text-[10px]">▾</span>
+                  </button>
+                  {openFilterDropdown === 'colors' && (
+                    <div className="absolute right-0 mt-2 w-40 max-h-64 overflow-y-auto bg-white border border-[#e6d5b8] rounded-xl shadow-lg p-1.5 z-20">
+                      <button
+                        onClick={() => { setActiveColor('all'); setOpenFilterDropdown(null); }}
+                        className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${activeColor === 'all' ? 'bg-[#f3e6cf] text-[#7a2331]' : 'text-[#3d2417] hover:bg-[#f3e6cf]'}`}
+                      >
+                        All colors
+                      </button>
+                      {colorOptions.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => { setActiveColor(color); setOpenFilterDropdown(null); }}
+                          className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${normalize(activeColor) === normalize(color) ? 'bg-[#f3e6cf] text-[#7a2331]' : 'text-[#3d2417] hover:bg-[#f3e6cf]'}`}
+                        >
+                          {color}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenFilterDropdown((c) => (c === 'seasons' ? null : 'seasons'))}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-[#e6d5b8] bg-white text-[#6b5645] hover:border-[#7a2331] hover:text-[#7a2331] transition"
+                  >
+                    Seasons <span className="text-[10px]">▾</span>
+                  </button>
+                  {openFilterDropdown === 'seasons' && (
+                    <div className="absolute right-0 mt-2 w-36 bg-white border border-[#e6d5b8] rounded-xl shadow-lg p-1.5 z-20">
+                      <button
+                        onClick={() => { setActiveSeason('all'); setOpenFilterDropdown(null); }}
+                        className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${activeSeason === 'all' ? 'bg-[#f3e6cf] text-[#7a2331]' : 'text-[#3d2417] hover:bg-[#f3e6cf]'}`}
+                      >
+                        All seasons
+                      </button>
+                      {SEASON_OPTIONS.map((season) => (
+                        <button
+                          key={season}
+                          onClick={() => { setActiveSeason(season); setOpenFilterDropdown(null); }}
+                          className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${activeSeason === season ? 'bg-[#f3e6cf] text-[#7a2331]' : 'text-[#3d2417] hover:bg-[#f3e6cf]'}`}
+                        >
+                          {season}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* CATEGORY TABS */}
+            <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
               {CATEGORY_TABS.map((category) => {
-                const isActive =
-                  activeCategory === category.key;
-
+                const isActive = activeCategory === category.key;
+                const count = categoryCounts[category.key] ?? 0;
                 return (
                   <button
                     key={category.key}
-                    type="button"
-                    onClick={() =>
-                      setActiveCategory(category.key)
-                    }
-                    className={`
-                      relative min-w-[126px] rounded-[12px]
-                      border px-5 py-3 font-sans text-sm font-semibold
-                      transition
-                      ${
-                        isActive
-                          ? 'border-[#783b38] bg-[#8d3d3d] text-white shadow-[0_5px_14px_rgba(103,49,45,0.18)]'
-                          : 'border-[#ddcfc0] bg-[#fffaf3]/75 text-[#514036] hover:border-[#9c7154] hover:bg-white/90'
-                      }
-                    `}
+                    onClick={() => setActiveCategory(category.key)}
+                    className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
+                      isActive ? 'bg-[#7a2331] text-white shadow-sm' : 'bg-white border border-[#e6d5b8] text-[#8a7360] hover:border-[#7a2331] hover:text-[#7a2331]'
+                    }`}
                   >
                     {category.label}
-
-                    <span
-                      className={`
-                        absolute -bottom-[7px] left-1/2 h-3 w-3
-                        -translate-x-1/2 rotate-45 rounded-full
-                        border
-                        ${
-                          isActive
-                            ? 'border-[#69402b] bg-[#b18b53]'
-                            : 'border-[#a98762] bg-[#cfaf78]'
-                        }
-                      `}
-                    />
+                    <span className={isActive ? 'text-white/70' : 'text-[#a89478]'}>{count}</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Error */}
             {error && (
-              <div className="mt-5 flex items-center justify-between rounded-xl border border-[#d9aaa3] bg-[#fff2ee]/90 px-4 py-3 font-sans text-sm text-[#93463f] lg:pointer-events-auto">
+              <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 <div className="flex items-center gap-2">
                   <AlertTriangle size={18} />
                   {error}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={fetchCatalogue}
-                  className="font-semibold underline"
-                >
-                  Retry
-                </button>
+                <button onClick={fetchCatalogue} className="font-semibold underline">Retry</button>
               </div>
             )}
 
-            {!isLoading &&
-              !error &&
-              filteredItems.length === 0 && (
-                <div className="mt-8 rounded-2xl border border-dashed border-[#cdb9a4] bg-[#fffaf2]/60 px-6 py-16 text-center backdrop-blur lg:pointer-events-auto">
-                  <Shirt
-                    size={42}
-                    strokeWidth={1.2}
-                    className="mx-auto text-[#9c7d65]"
-                  />
-
-                  <h3 className="mt-4 font-serif text-2xl font-semibold">
-                    No pieces found
-                  </h3>
-
-                  <p className="mt-2 font-sans text-sm text-[#7d6d62]">
-                    Try another category or upload a new
-                    item.
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={() => navigate('/upload')}
-                    className="mt-5 rounded-xl bg-[#82403e] px-5 py-2.5 font-sans text-sm font-semibold text-white transition hover:bg-[#693230]"
+            {isLoading ? (
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="aspect-square rounded-xl bg-white/60 border border-[#e6d5b8] animate-pulse" />
+                ))}
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center py-16 border border-dashed border-[#e6d5b8] rounded-xl">
+                <Shirt size={42} strokeWidth={1.2} className="text-[#a89478] mb-3" />
+                <h3 className="font-display text-lg font-bold text-[#3d2417] mb-1">No pieces found</h3>
+                <p className="text-sm text-[#8a7360] mb-5">Try another category or upload a new item.</p>
+                <button
+                  onClick={() => navigate('/upload')}
+                  className="rounded-xl bg-[#7a2331] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#631b28]"
+                >
+                  Add New Item
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+                {filteredItems.map((item) => (
+                  <motion.div
+                    key={item.id}
+                    whileHover={{ y: -3 }}
+                    onClick={() => handleItemClick(item)}
+                    className="relative aspect-square rounded-xl bg-white border border-[#e6d5b8] overflow-hidden cursor-pointer hover:border-[#7a2331] transition-all"
                   >
-                    Add New Item
-                  </button>
-                </div>
-              )}
-          </section>
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={getDisplayName(item)} className="w-full h-full object-contain p-1.5" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <Shirt size={32} strokeWidth={1.2} className="text-[#a89478]" />
+                      </div>
+                    )}
 
-                    {/* =================================================
-              LOWER SECTION — hidden on desktop for now, since
-              it's duplicating the same first items as the main
-              shelf. Still shows on mobile.
-          ================================================== */}
-
-          <section
-            id="favorites-section"
-            className="mt-10 px-8 py-6 lg:hidden"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-4">
-              <div className="flex flex-wrap items-center gap-7">
-                <button
-                  type="button"
-                  className="flex items-center gap-2 font-serif text-[17px] font-semibold text-[#853f3c]"
-                >
-                  <Hanger />
-                  Recent Looks
-                </button>
-
-                <button
-                  type="button"
-                  className="flex items-center gap-2 font-serif text-[17px] font-semibold text-[#625047]"
-                >
-                  <Heart size={19} />
-                  Favourites
-                </button>
-
-                <button
-                  type="button"
-                  className="flex items-center gap-2 font-serif text-[17px] font-semibold text-[#625047]"
-                >
-                  <Wand2 size={18} />
-                  Style Notes
-                </button>
-              </div>
-
-              <button
-                type="button"
-                className="font-sans text-sm font-medium text-[#665347]"
-              >
-                View all →
-              </button>
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {recentItems.slice(0, 4).map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleItemClick(item)}
-                  className="flex h-[160px] items-center justify-center p-4 transition hover:-translate-y-1"
-                >
-                  {item.image_url ? (
-                    <img
-                      src={item.image_url}
-                      alt={getDisplayName(item)}
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <Shirt
-                      size={42}
-                      strokeWidth={1.2}
-                      className="text-[#a5846c]"
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        {/* =================================================
-            DESKTOP-ONLY OVERLAYS
-            Deliberately placed AFTER the content div above,
-            not before it — later in the DOM wins paint order
-            when z-index ties, which is what makes these
-            actually receive clicks/scroll instead of the
-            (mostly transparent) content div swallowing them.
-        ================================================== */}
-
-        {/* Desktop category tabs, pinned to the background artwork's card */}
-        <div
-          className="pointer-events-none fixed top-0 right-0 bottom-0 z-30 hidden lg:block"
-          style={{ width: 'calc(100vw - 260px)' }}
-        >
-          <p
-           className="pointer-events-none absolute font-serif italic font-semibold text-[#f0d9a8] drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
-            style={{ top: '12.5%', right: '43%', fontSize: '35px' }}
-          >
-            {firstName}&rsquo;s Almari
-          </p>
-          <p
-            className="pointer-events-none absolute font-serif font-bold text-[#8a3f3c]"
-            style={{ right: '12%', top: '16%', fontSize: '20px' }}
-          >
-            {filteredItems.length}{' '}
-            {filteredItems.length === 1 ? 'piece' : 'pieces'}
-          </p>
-
-          <div className="pointer-events-auto absolute flex items-center" style={{ top: '20px', right: '100px' }}>
-            <button
-              type="button"
-              onClick={() => setIsProfileOpen(true)}
-              aria-label="Profile"
-              className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-[#d5bda5] bg-[#dbc3aa] shadow-sm transition hover:bg-[#d3b89c]"
-            >
-              <User size={20} className="text-[#4d382d]" />
-            </button>
-          </div>
-
-          {/*
-            ===============================================
-            CATEGORY TABS — redesigned as soft pill buttons
-            with a per-category item count, instead of the
-            old flat underlined text. Active pill is filled
-            maroon; inactive pills are a quiet ghost/outline
-            that fills in softly on hover. Kept intentionally
-            simple: no icons, no extra ornamentation, just
-            clearer buttons and a bit of useful information
-            (the count) that wasn't there before.
-            ===============================================
-          */}
-          <div
-            className="pointer-events-auto absolute flex items-center rounded-2xl border border-[#d9cabb] bg-[#fffaf3]/85 shadow-[0_6px_18px_rgba(83,54,34,0.08)] backdrop-blur-sm"
-            style={{ left: '11.1%', top: '20.5%', width: '77.3%' }}
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto px-3 py-2.5">
-              {CATEGORY_TABS.map((category) => {
-                const isActive = activeCategory === category.key;
-                const count = categoryCounts[category.key] ?? 0;
-
-                return (
-                  <button
-                    key={category.key}
-                    type="button"
-                    onClick={() => setActiveCategory(category.key)}
-                    className={`
-                      flex shrink-0 items-center gap-1.5 whitespace-nowrap
-                      rounded-full px-4 py-2 font-sans text-xs font-semibold
-                      transition-all
-                      ${
-                        isActive
-                          ? 'bg-[#8d3d3d] text-white shadow-[0_4px_12px_rgba(141,61,61,0.3)]'
-                          : 'text-[#7d6d62] hover:bg-[#f2e5d8] hover:text-[#5c4632]'
-                      }
-                    `}
-                  >
-                    {category.label}
-                    <span
-                      className={`
-                        text-[10px] font-normal
-                        ${isActive ? 'text-white/70' : 'text-[#a89383]'}
-                      `}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex shrink-0 items-center gap-4 border-l border-[#e6d9c8] px-4 py-2.5">
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOpenFilterDropdown((current) =>
-                      current === 'colors' ? null : 'colors'
-                    )
-                  }
-                  className="flex items-center gap-1 font-sans text-xs font-medium text-[#624d40] hover:text-[#8d3d3d]"
-                >
-                  Colors
-                  <span className="text-[10px]">▾</span>
-                </button>
-
-                {openFilterDropdown === 'colors' && (
-                  <div className="absolute right-0 top-full z-30 mt-2 max-h-64 w-40 overflow-y-auto rounded-lg border border-[#ddcfc0] bg-white p-1.5 shadow-lg">
                     <button
-                      type="button"
-                      onClick={() => {
-                        setActiveColor('all');
-                        setOpenFilterDropdown(null);
-                      }}
-                      className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${
-                        activeColor === 'all'
-                          ? 'bg-[#f2e5d8] text-[#8d3d3d]'
-                          : 'text-[#514036] hover:bg-[#f7f0e7]'
-                      }`}
+                      onClick={(e) => handleToggleFavorite(e, item)}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center text-[#a89478] hover:text-[#7a2331] transition shadow-sm"
                     >
-                      All colors
+                      <Heart className={`w-3.5 h-3.5 ${item.is_favorite ? 'fill-[#7a2331] text-[#7a2331]' : ''}`} />
                     </button>
-
-                    {colorOptions.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => {
-                          setActiveColor(color);
-                          setOpenFilterDropdown(null);
-                        }}
-                        className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${
-                          normalize(activeColor) === normalize(color)
-                            ? 'bg-[#f2e5d8] text-[#8d3d3d]'
-                            : 'text-[#514036] hover:bg-[#f7f0e7]'
-                        }`}
-                      >
-                        {color}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  </motion.div>
+                ))}
               </div>
-
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOpenFilterDropdown((current) =>
-                      current === 'seasons' ? null : 'seasons'
-                    )
-                  }
-                  className="flex items-center gap-1 font-sans text-xs font-medium text-[#624d40] hover:text-[#8d3d3d]"
-                >
-                  Seasons
-                  <span className="text-[10px]">▾</span>
-                </button>
-
-                {openFilterDropdown === 'seasons' && (
-                  <div className="absolute right-0 top-full z-30 mt-2 max-h-64 w-36 overflow-y-auto rounded-lg border border-[#ddcfc0] bg-white p-1.5 shadow-lg">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveSeason('all');
-                        setOpenFilterDropdown(null);
-                      }}
-                      className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${
-                        activeSeason === 'all'
-                          ? 'bg-[#f2e5d8] text-[#8d3d3d]'
-                          : 'text-[#514036] hover:bg-[#f7f0e7]'
-                      }`}
-                    >
-                      All seasons
-                    </button>
-
-                    {SEASON_OPTIONS.map((season) => (
-                      <button
-                        key={season}
-                        type="button"
-                        onClick={() => {
-                          setActiveSeason(season);
-                          setOpenFilterDropdown(null);
-                        }}
-                        className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${
-                          activeSeason === season
-                            ? 'bg-[#f2e5d8] text-[#8d3d3d]'
-                            : 'text-[#514036] hover:bg-[#f7f0e7]'
-                        }`}
-                      >
-                        {season}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Desktop clothing shelf, two rows, pinned to the background artwork's card */}
-        <div
-          className="pointer-events-none fixed top-0 right-0 bottom-0 z-10 hidden lg:block"
-          style={{ width: 'calc(100vw - 260px)' }}
-        >
-          <div
-            className="pointer-events-auto absolute"
-            style={{ left: '10%', top: '28%', width: '78%', height: '41%' }}
-          >
-            <div
-              ref={desktopClosetScrollRef}
-              className="
-                grid h-full grid-flow-col grid-rows-2 auto-cols-[150px]
-                gap-4 overflow-x-auto scroll-smooth
-                [-ms-overflow-style:none] [scrollbar-width:none]
-                [&::-webkit-scrollbar]:hidden
-              "
-            >
-              {isLoading
-                ? Array.from({ length: 12 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="aspect-[0.82] w-[150px] animate-pulse rounded-2xl border border-[#ddd0c2] bg-white/50"
-                    />
-                  ))
-                : filteredItems.map((item) => (
-                    <motion.article
-                      key={item.id}
-                      whileHover={{ y: -5 }}
-                      onClick={() => handleItemClick(item)}
-                      style={{ pointerEvents: 'auto' }}
-                      className="group relative flex aspect-[0.82] w-[150px] cursor-pointer items-center justify-center rounded-2xl border border-[#e6d9c8] bg-white/40 p-4 shadow-[0_4px_10px_rgba(70,45,30,0.08)] transition-shadow hover:bg-white/70 hover:shadow-[0_8px_18px_rgba(70,45,30,0.16)]"
-                    >
-
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={getDisplayName(item)}
-                          className="h-full w-full object-contain drop-shadow-[0_8px_8px_rgba(70,45,30,0.13)] transition duration-300 group-hover:scale-[1.035]"
-                        />
-                      ) : (
-                        <Shirt
-                          size={50}
-                          strokeWidth={1.2}
-                          className="text-[#a5846c]"
-                        />
-                      )}
-                    </motion.article>
-                  ))}
-            </div>
-
-            {!isLoading && filteredItems.length > 0 && (
-              <button
-                type="button"
-                onClick={scrollDesktopClosetRight}
-                aria-label="Show more pieces"
-                className="
-                  pointer-events-auto absolute -right-8 top-1/2 z-20 flex h-11 w-11
-                  -translate-y-1/2 items-center justify-center
-                  rounded-full border border-[#d9c6b1]
-                  bg-[#fffaf3]/95 text-[#6b4a34]
-                  shadow-[0_7px_18px_rgba(70,45,25,.18)]
-                  backdrop-blur transition hover:bg-white
-                "
-              >
-                <ChevronRight size={20} />
-              </button>
             )}
           </div>
-        </div>
-        
+
+          {/* RECENTLY ADDED */}
+          {recentItems.length > 0 && (
+            <div className="mt-6 bg-[#FCF6EC] rounded-3xl border border-[#e6d5b8] shadow-[0_8px_30px_rgba(61,36,23,0.08)] p-4 md:p-6">
+              <p className="text-sm font-semibold text-[#3d2417] mb-4">Recently Added</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {recentItems.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => handleItemClick(item)}
+                    className="aspect-square rounded-xl bg-white border border-[#e6d5b8] cursor-pointer hover:border-[#7a2331] transition flex items-center justify-center"
+                  >
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={getDisplayName(item)} className="w-full h-full object-contain p-1.5" />
+                    ) : (
+                      <Shirt size={32} strokeWidth={1.2} className="text-[#a89478]" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </main>
       </div>
-    </main>
 
-    {/* =====================================================
-        MODALS
-    ====================================================== */}
+      {/* AI STYLIST FAB — same as VisualizeScreen */}
+      <button
+        onClick={() => navigate('/chatbot')}
+        title="AI Stylist"
+        className="fixed bottom-6 right-6 z-30 flex flex-col items-center justify-center w-20 h-20 rounded-full bg-[#7a2331] hover:bg-[#631b28] text-white shadow-lg transition"
+      >
+        <Sparkles className="w-5 h-5 mb-0.5" />
+        <span className="text-[9px] font-semibold">AI Stylist</span>
+      </button>
 
-    <ItemDetailModal
-      item={selectedItem}
-      onClose={() => setSelectedItem(null)}
-      onDeleted={(deletedId) => {
-        setItems((currentItems) =>
-          currentItems.filter(
-            (item) => item.id !== deletedId
-          )
-        );
+      <ItemDetailModal
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        onDeleted={(deletedId) => {
+          setItems((currentItems) => currentItems.filter((item) => item.id !== deletedId));
+          setSelectedItem(null);
+        }}
+        onUpdated={(updatedId, changes) => {
+          setItems((currentItems) =>
+            currentItems.map((item) => (item.id === updatedId ? { ...item, ...changes } : item))
+          );
+          setSelectedItem((currentItem) =>
+            currentItem?.id === updatedId ? { ...currentItem, ...changes } : currentItem
+          );
+        }}
+      />
 
-        setSelectedItem(null);
-      }}
-      onUpdated={(updatedId, changes) => {
-        setItems((currentItems) =>
-          currentItems.map((item) =>
-            item.id === updatedId
-              ? {
-                  ...item,
-                  ...changes,
-                }
-              : item
-          )
-        );
-
-        setSelectedItem((currentItem) =>
-          currentItem?.id === updatedId
-            ? {
-                ...currentItem,
-                ...changes,
-              }
-            : currentItem
-        );
-      }}
-    />
-
-    <ProfileDrawer
-      isOpen={isProfileOpen}
-      onClose={() => setIsProfileOpen(false)}
-    />
-  </div>
+      <ProfileDrawer isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
+    </div>
   );
 }
