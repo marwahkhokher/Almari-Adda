@@ -6,7 +6,7 @@ This is all user-editable.
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Union
 import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
