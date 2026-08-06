@@ -405,11 +405,11 @@ def _ensure_valid_image_bytes(img_bytes: Optional[bytes]) -> Optional[bytes]:
         img = Image.open(io.BytesIO(img_bytes))
         img.load()
         buf = io.BytesIO()
-        img.convert("RGBA").save(buf, format="PNG")
+        img.convert("RGB").save(buf, format="JPEG")
         return buf.getvalue()
     except Exception as e:
         logger.warning("Failed to validate image bytes: %s", e)
-        return img_bytes
+        return None
 
 @app.post("/visualize")
 async def visualize_outfit(
