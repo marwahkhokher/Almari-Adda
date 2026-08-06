@@ -183,13 +183,6 @@ export async function updateItemMetadata(itemId, metadata) {
 
 
 // POST /item-metadata/increment-worn
-export async function incrementTimesWorn(itemIds) {
-  return request("/item-metadata/increment-worn", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ item_ids: itemIds }),
-  });
-}
 
 // ============================================================
 // Upload
