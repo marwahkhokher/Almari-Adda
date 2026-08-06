@@ -13,7 +13,7 @@ from PIL import Image
 import io
 from datetime import datetime
 
-from app.main import supabase, catvton_function, dress_function, detect_best_season, _download_image_bytes, _generate_local_overlay
+from app.main import supabase, catvton_function, dress_function, detect_best_season, _download_image_bytes, _generate_local_overlay, _ensure_valid_image_bytes
 from app.ml.pipeline import process_clothing_upload
 from app.color_utils import get_dominant_color, get_color_name
 from app.jobs.db import get_pending_jobs, update_job_status
@@ -116,16 +116,29 @@ async def process_visualization_job(payload: dict) -> dict:
         with open(photo_file, "rb") as f:
             person_bytes = f.read()
 
+    person_bytes = _ensure_valid_image_bytes(person_bytes)
+    top_bytes = _ensure_valid_image_bytes(top_bytes)
+    bottom_bytes = _ensure_valid_image_bytes(bottom_bytes)
+    dress_bytes = _ensure_valid_image_bytes(dress_bytes)
+
     result_bytes = None
 
-    if dress_bytes:
-        result_bytes = await dress_function.remote.aio(person_bytes, dress_bytes)
-    else:
-        result_bytes = await catvton_function.remote.aio(
-            person_bytes,
-            top_image_bytes=top_bytes,
-            bottom_image_bytes=bottom_bytes,
-        )
+    if dress_function and catvton_function:
+        try:
+            if dress_bytes:
+                result_bytes = await dress_function.remote.aio(person_bytes, dress_bytes)
+            else:
+                result_bytes = await catvton_function.remote.aio(
+                    person_bytes,
+                    top_image_bytes=top_bytes,
+                    bottom_image_bytes=bottom_bytes,
+                )
+        except Exception as e:
+            logger.warning("Modal remote execution failed, falling back to local overlay: %s", e)
+            result_bytes = None
+
+    if not result_bytes:
+        result_bytes = _generate_local_overlay(person_bytes, top_bytes, bottom_bytes, dress_bytes)
 
     result_filename = f"visualization_{uuid.uuid4()}.png"
     supabase.storage.from_("clothing-images").upload(

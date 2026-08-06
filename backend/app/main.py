@@ -5,8 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pathlib import Path
 from supabase import create_client, Client
-from datetime import datetime
-
+from typing import Optional, List, Union
 from app.ml.pipeline import process_clothing_upload
 from app.color_utils import get_dominant_color, get_color_name
 from datetime import date
@@ -394,6 +393,22 @@ def _generate_local_overlay(person_bytes: bytes, top_bytes: bytes = None, bottom
     person_img.convert("RGB").save(out_buf, format="PNG")
     return out_buf.getvalue()
 
+def _ensure_valid_image_bytes(img_bytes: Optional[bytes]) -> Optional[bytes]:
+    if not img_bytes:
+        return None
+    try:
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(img_bytes))
+        img.verify()
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception as e:
+        logger.warning("Failed to validate image bytes: %s", e)
+        return img_bytes
+
 @app.post("/visualize")
 async def visualize_outfit(
     item_ids: str,
@@ -459,20 +474,29 @@ async def visualize_outfit(
         with open(person_photo_path, "rb") as f:
             person_bytes = f.read()
 
-    import traceback
+    person_bytes = _ensure_valid_image_bytes(person_bytes)
+    top_bytes = _ensure_valid_image_bytes(top_bytes)
+    bottom_bytes = _ensure_valid_image_bytes(bottom_bytes)
+    dress_bytes = _ensure_valid_image_bytes(dress_bytes)
 
-    try:
-        if dress_bytes:
-            result_bytes = await dress_function.remote.aio(person_bytes, dress_bytes)
-        else:
-            result_bytes = await catvton_function.remote.aio(
-                person_bytes,
-                top_image_bytes=top_bytes,
-                bottom_image_bytes=bottom_bytes,
-            )
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Visualization failed: {repr(e)}")
+    result_bytes = None
+
+    if dress_function and catvton_function:
+        try:
+            if dress_bytes:
+                result_bytes = await dress_function.remote.aio(person_bytes, dress_bytes)
+            else:
+                result_bytes = await catvton_function.remote.aio(
+                    person_bytes,
+                    top_image_bytes=top_bytes,
+                    bottom_image_bytes=bottom_bytes,
+                )
+        except Exception as e:
+            logger.warning("Modal remote execution failed, falling back to local overlay: %s", e)
+            result_bytes = None
+
+    if not result_bytes:
+        result_bytes = _generate_local_overlay(person_bytes, top_bytes, bottom_bytes, dress_bytes)
 
     result_filename = f"visualization_{uuid.uuid4()}.png"
     supabase.storage.from_("clothing-images").upload(
