@@ -55,10 +55,15 @@ _OCCASION_FORMALITY = {
     "wedding": "formal",
     "interview": "formal",
     "eid": "formal",
+    "gala": "formal",
+    "reception": "formal",
     "office": "semi-formal",
     "work": "semi-formal",
     "party": "semi-formal",
     "date": "semi-formal",
+    "date night": "semi-formal",
+    "dinner": "semi-formal",
+    "evening": "semi-formal",
     "university": "casual",
     "college": "casual",
     "school": "casual",
@@ -70,9 +75,15 @@ _OCCASION_FORMALITY = {
 
 
 def _desired_formality(occasion):
-    if not occasion:
+    if not occasion or not isinstance(occasion, str):
         return None
-    return _OCCASION_FORMALITY.get(occasion.lower())
+    occ = occasion.strip().lower()
+    if occ in _OCCASION_FORMALITY:
+        return _OCCASION_FORMALITY[occ]
+    for key, val in _OCCASION_FORMALITY.items():
+        if key in occ:
+            return val
+    return "semi-formal"
 
 
 async def parse_intent(state: ChatbotState) -> ChatbotState:
@@ -152,9 +163,73 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     # Filter P2's outfits by occasion formality and color constraint
     filtered_outfits = raw_outfits
 
+    # ── Occasion-aware style preferences ──────────────────────────
+    # Maps occasions to preferred subcategory keywords so the chatbot
+    # picks culturally/contextually appropriate items.
+    _OCCASION_STYLE_PREFERENCES = {
+        # Eastern/cultural occasions → strongly prefer eastern wear
+        "eid":       {"prefer": {"kurta", "abaya", "shalwar kameez", "lehenga", "saree", "sari", "sherwani"},
+                      "category_prefer": {"eastern wear", "eastern", "dress"}},
+        "mehndi":    {"prefer": {"lehenga", "saree", "sari", "kurta", "shalwar kameez"},
+                      "category_prefer": {"eastern wear", "eastern"}},
+        "wedding":   {"prefer": {"lehenga", "saree", "sari", "gown", "evening dress", "sherwani", "abaya", "kurta", "shalwar kameez"},
+                      "category_prefer": {"eastern wear", "eastern", "dress"}},
+        "reception": {"prefer": {"gown", "evening dress", "cocktail dress", "lehenga", "saree"},
+                      "category_prefer": {"dress", "eastern wear"}},
+        # Professional occasions → blazers, shirts, trousers
+        "interview": {"prefer": {"blazer", "suit", "suit jacket", "dress shirt", "trousers", "dress pants", "pencil skirt"},
+                      "category_prefer": {"top", "bottom"}},
+        "office":    {"prefer": {"blazer", "blouse", "shirt", "trousers", "chinos", "pencil skirt"},
+                      "category_prefer": {"top", "bottom"}},
+        "work":      {"prefer": {"blazer", "blouse", "shirt", "trousers", "chinos"},
+                      "category_prefer": {"top", "bottom"}},
+        # Social/romantic → elegant dresses, skirts, blouses
+        "date":      {"prefer": {"dress", "formal dress", "cocktail dress", "blouse", "skirt", "satin skirt"},
+                      "category_prefer": {"dress", "top", "bottom"}},
+        "date night": {"prefer": {"dress", "formal dress", "cocktail dress", "blouse", "skirt", "satin skirt"},
+                       "category_prefer": {"dress", "top", "bottom"}},
+        "dinner":    {"prefer": {"dress", "formal dress", "blouse", "skirt"},
+                      "category_prefer": {"dress", "top", "bottom"}},
+        "party":     {"prefer": {"cocktail dress", "dress", "formal dress", "blouse", "skirt"},
+                      "category_prefer": {"dress", "top", "bottom"}},
+        "gala":      {"prefer": {"gown", "evening dress", "lehenga", "saree"},
+                      "category_prefer": {"dress", "eastern wear"}},
+    }
+
+    occ_lower = (occasion or "").strip().lower()
+
+    # Find style prefs: try exact match, then substring
+    style_prefs = _OCCASION_STYLE_PREFERENCES.get(occ_lower)
+    if not style_prefs:
+        for key, val in _OCCASION_STYLE_PREFERENCES.items():
+            if key in occ_lower or occ_lower in key:
+                style_prefs = val
+                break
+
+    def _outfit_style_score(outfit: dict) -> int:
+        """Score an outfit by how well it matches the occasion's style preferences."""
+        if not style_prefs:
+            return 0
+        score = 0
+        preferred_subs = style_prefs.get("prefer", set())
+        preferred_cats = style_prefs.get("category_prefer", set())
+        for slot in ("top", "bottom", "item"):
+            piece = outfit.get(slot)
+            if not piece:
+                continue
+            sub = (piece.get("subcategory") or "").lower()
+            cat = (piece.get("category") or "").lower()
+            # Strong match: subcategory is in preferred list
+            if sub in preferred_subs or any(p in sub for p in preferred_subs):
+                score += 10
+            # Moderate match: category is preferred
+            if cat in preferred_cats:
+                score += 3
+        return score
+
     # Formal/Semi-formal occasion check
-    FORMAL_OCCASIONS = {"wedding", "interview", "formal", "gala", "black tie", "eid", "reception", "party", "office", "business"}
-    if occasion and occasion.lower() in FORMAL_OCCASIONS:
+    FORMAL_OCCASIONS = {"wedding", "interview", "formal", "gala", "black tie", "eid", "reception", "party", "office", "business", "dinner", "mehndi"}
+    if occasion and occ_lower in FORMAL_OCCASIONS:
         def _is_formal_enough(outfit: dict) -> bool:
             for slot in ("top", "bottom", "item"):
                 piece = outfit.get(slot)
@@ -182,8 +257,7 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
 
         filtered_outfits = [o for o in filtered_outfits if _matches_color(o)]
 
-    # Filter by occasion's formality if we could infer one, so we don't
-    # always fall through to picking the very first outfit in the list.
+    # Filter by occasion's formality if we could infer one
     desired_formality = _desired_formality(state.get("occasion"))
     if desired_formality:
         def _matches_formality(outfit: dict) -> bool:
@@ -200,12 +274,15 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
         formality_matched = [o for o in filtered_outfits if _matches_formality(o)]
         filtered_outfits = formality_matched or filtered_outfits
 
+    # ── Pick the BEST outfit by style-preference score ────────────
     if not filtered_outfits:
         chosen_items: List[ClothingItem] = []
     else:
-        # filtered_outfits is already sorted best-match-first by
-        # get_valid_outfits when a prompt_embedding was supplied.
-        top_outfit = filtered_outfits[0]
+        # Score every outfit by occasion-style match, pick highest
+        scored = [(o, _outfit_style_score(o)) for o in filtered_outfits]
+        max_score = max(s for _, s in scored)
+        top_scored = [o for o, s in scored if s == max_score]
+        top_outfit = random.choice(top_scored)
         chosen_items = []
         for slot in ("top", "bottom", "item"):
             piece = top_outfit.get(slot)

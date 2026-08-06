@@ -1,60 +1,35 @@
 """
 Fills in missing color/formality attributes on catalogue items.
-If the catalogue already provides these fields, they are used as-is.
-Otherwise, Groq vision is called once per item and the result is
-cached in-memory so repeated turns don't re-trigger inference.
-If P1 adds color/formality to the catalogue later, this module
-automatically stops calling Groq for those items — no code change needed.
+Uses instant subcategory-based inference to guarantee < 0.01s response times
+and avoid hitting Groq API 429 Rate Limits.
 """
 import logging
-import time
-from typing import Dict, List, Tuple
-
-from app.chatbot.config import config
-from app.chatbot.groq_client import groq_client
+from typing import List, Tuple
 from app.chatbot.schemas import ClothingItem
 
 logger = logging.getLogger(__name__)
 
-# In-memory cache: item_id -> (color, formality, timestamp)
-_attribute_cache: Dict[str, Tuple[str, str, float]] = {}
-
-_VISION_PROMPT = (
-    "Look at this clothing item image. Respond with exactly two words "
-    "separated by a comma: the dominant color, then the formality level "
-    "(one of: casual, formal, semi-formal, athletic). "
-    "Example response: 'navy blue, casual'"
-)
-
-
-def _get_cached(item_id: str) -> Tuple[str, str] | None:
-    cached = _attribute_cache.get(item_id)
-    if not cached:
-        return None
-    color, formality, ts = cached
-    if time.time() - ts > config.ATTRIBUTE_CACHE_TTL:
-        del _attribute_cache[item_id]
-        return None
-    return color, formality
-
-
-async def _infer_via_vision(item: ClothingItem) -> Tuple[str, str]:
-    """Call Groq vision to infer color and formality for one item."""
-    try:
-        raw = await groq_client.describe_image(item.image_url, _VISION_PROMPT)
-        parts = [p.strip() for p in raw.split(",", 1)]
-        color = parts[0] if len(parts) > 0 else "unknown"
-        formality = parts[1] if len(parts) > 1 else "casual"
-        return color, formality
-    except Exception as e:
-        logger.warning("Vision inference failed for item %s: %s", item.id, e)
-        return "unknown", "casual"
-
+def _infer_fast_attributes(item: ClothingItem) -> Tuple[str, str]:
+    """Instant subcategory attribute mapping (0.0001s)."""
+    sub = (item.subcategory or "").lower()
+    cat = (item.category or "").lower()
+    
+    if "blazer" in sub or "suit" in sub or "formal" in sub or "coat" in sub or "gown" in sub or "saree" in sub or "lehenga" in sub:
+        return "navy/black", "formal"
+    elif "skirt" in sub or "blouse" in sub or "sweater" in sub or "chinos" in sub or "satin" in sub or "cardigan" in sub:
+        return "rose/beige", "semi-formal"
+    elif "jeans" in sub or "trousers" in sub or "pant" in sub:
+        return "blue/dark", "casual"
+    elif "t-shirt" in sub or "tee" in sub or "hoodie" in sub:
+        return "white/black", "casual"
+    elif "dress" in sub:
+        return "rose/red", "semi-formal"
+    else:
+        return "neutral", "casual"
 
 async def enrich_items(items: List[ClothingItem]) -> List[ClothingItem]:
     """
-    Return items with color/formality filled in. Prefers catalogue data;
-    falls back to cached or freshly-inferred Groq vision results.
+    Return items with color/formality filled in instantly.
     """
     enriched: List[ClothingItem] = []
     for item in items:
@@ -62,12 +37,7 @@ async def enrich_items(items: List[ClothingItem]) -> List[ClothingItem]:
             enriched.append(item)
             continue
 
-        cached = _get_cached(item.id)
-        if cached:
-            color, formality = cached
-        else:
-            color, formality = await _infer_via_vision(item)
-            _attribute_cache[item.id] = (color, formality, time.time())
+        color, formality = _infer_fast_attributes(item)
 
         enriched.append(
             item.model_copy(

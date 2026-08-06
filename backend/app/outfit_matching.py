@@ -14,6 +14,8 @@ SINGLE_PIECE_KEYWORDS = (
     "sari",
     "jumpsuit",
     "lehenga",
+    "romper",
+    "frock",
     "kurta",
     "shalwar kameez",
     "sherwani",
@@ -32,18 +34,11 @@ def get_valid_outfits(items, prompt_embedding=None):
     Given a list of catalogue items, return valid outfit combinations.
     Handles two cases:
     1. Top + bottom pairs, filtered by formality and color compatibility.
-    2. Single-piece items (dress, abaya, saree, kurta, shalwar kameez,
-       etc.) that are complete outfits on their own. Category doesn't
-       matter here - only subcategory, since these items may be tagged
-       under "eastern wear" or other non top/bottom categories.
+    2. Single-piece items (dresses, gowns, abayas, sarees, kurtas, etc.) that are complete outfits on their own.
 
     If prompt_embedding is given, each outfit gets a "similarity" score
     against that embedding (averaging the embeddings of its pieces),
-    and the returned list is sorted best-match-first. If not given,
-    outfits are returned in the order found, with no scoring - callers
-    that don't care about ranking can ignore the "similarity" field.
-
-    Returns an empty list (never crashes) if there isn't enough data.
+    and the returned list is sorted best-match-first.
     """
     if not items:
         return []
@@ -58,13 +53,10 @@ def get_valid_outfits(items, prompt_embedding=None):
     def _get_color_cached(item):
         item_id = item.get("id")
         if item_id not in color_cache:
-            color_cache[item_id] = get_dominant_color(item["image_url"])
+            color_cache[item_id] = get_dominant_color(item.get("image_url", ""))
         return color_cache[item_id]
 
     def _score(outfit_embeddings):
-        """Average the embeddings of an outfit's pieces and compare
-        against the prompt embedding. Returns None if scoring isn't
-        possible (no prompt, or a piece is missing its embedding)."""
         if prompt_embedding is None:
             return None
         valid_embeddings = [e for e in outfit_embeddings if e]
@@ -80,8 +72,11 @@ def get_valid_outfits(items, prompt_embedding=None):
     # Case 1: top + bottom pairs
     for top in tops:
         for bottom in bottoms:
-            top_formality = get_formality(top.get("subcategory", ""))
-            bottom_formality = get_formality(bottom.get("subcategory", ""))
+            top_sub = top.get("subcategory", "") or top.get("category", "")
+            bottom_sub = bottom.get("subcategory", "") or bottom.get("category", "")
+
+            top_formality = get_formality(top_sub)
+            bottom_formality = get_formality(bottom_sub)
 
             if not is_formality_compatible(top_formality, bottom_formality):
                 continue
@@ -89,15 +84,10 @@ def get_valid_outfits(items, prompt_embedding=None):
             try:
                 top_color = _get_color_cached(top)
                 bottom_color = _get_color_cached(bottom)
+                if top_color and bottom_color and not is_color_compatible(top_color, bottom_color):
+                    continue
             except Exception as e:
-                logger.warning(
-                    "Color check failed for top=%s bottom=%s: %s",
-                    top.get("id"), bottom.get("id"), e,
-                )
-                continue
-
-            if not is_color_compatible(top_color, bottom_color):
-                continue
+                logger.warning("Color check skipped for top=%s bottom=%s: %s", top.get("id"), bottom.get("id"), e)
 
             similarity = _score([top.get("embedding"), bottom.get("embedding")])
 
@@ -105,14 +95,14 @@ def get_valid_outfits(items, prompt_embedding=None):
                 "type": "top_bottom",
                 "top": top,
                 "bottom": bottom,
-                "formality": top_formality if top_formality == bottom_formality else "mixed",
+                "formality": top_formality if top_formality == bottom_formality else "semi-formal",
                 "similarity": similarity,
             })
 
-    # Case 2: single-piece outfits (dress, abaya, saree, kurta, etc.)
+    # Case 2: single-piece outfits (dresses, gowns, abayas, sarees, kurtas, etc.)
     for item in items:
-        subcategory = item.get("subcategory", "").lower()
-        if _is_single_piece(subcategory):
+        subcategory = (item.get("subcategory") or item.get("category") or "").lower()
+        if _is_single_piece(subcategory) or "dress" in subcategory:
             formality = get_formality(subcategory)
             similarity = _score([item.get("embedding")])
             valid_outfits.append({

@@ -22,3 +22,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# The root .gitignore has a Python "lib/" rule (for build artifacts) that
+# unintentionally matches this frontend's src/lib SOURCE folder and silently
+# drops files from it (this is why soundEffects.js was missing on main).
+# Keep the frontend source lib tracked.
+!src/lib/
+!src/lib/**
+
+# Vite cache
+.vite/

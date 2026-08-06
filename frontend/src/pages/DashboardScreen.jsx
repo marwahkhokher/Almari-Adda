@@ -40,7 +40,7 @@ import {
 import { playWhoosh } from '../lib/soundEffects.js';
 import ItemDetailModal from '../components/ItemDetailModal.jsx';
 import ProfileDrawer from './ProfileScreen.jsx';
-import Sidebar from '../components/Sidebar.jsx';
+import Sidebar from '../components/Sidebar2.jsx';
 
 
 function Hanger() {

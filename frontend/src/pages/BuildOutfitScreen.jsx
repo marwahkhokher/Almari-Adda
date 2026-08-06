@@ -17,7 +17,7 @@ import {
 
 import { buildOutfit } from '../lib/api.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import Sidebar from '../components/Sidebar.jsx';
+import Sidebar from '../components/Sidebar2.jsx';
 
 const COLORS = [
   'black', 'white', 'dark gray', 'gray', 'light gray',
