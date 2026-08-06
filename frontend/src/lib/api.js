@@ -67,10 +67,69 @@ export async function getCatalogue() {
 }
 
 // DELETE /catalogue/{item_id}
+// DELETE /catalogue/{item_id}
 export async function deleteItem(itemId) {
   return request(`/catalogue/${itemId}`, {
     method: "DELETE",
   });
+}
+
+// PATCH /catalogue/{item_id}
+export async function updateItemCategory(itemId, updates) {
+  return request(`/catalogue/${itemId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updates),
+  });
+}
+
+// PATCH /catalogue/{item_id} — toggle favorite status
+export async function toggleFavorite(itemId, isFavorite) {
+  return request(`/catalogue/${itemId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ is_favorite: isFavorite }),
+  });
+}
+
+// ============================================================
+// Filters (colour / season / event)
+// ============================================================
+// ============================================================
+// Filters (colour / season / event)
+// ============================================================
+
+// GET /filters/options -> { colors, seasons, events }
+// Dynamic: only values actually present in the catalogue are returned.
+export async function getFilterOptions() {
+  const data = await request("/filters/options");
+  return {
+    colors: Array.isArray(data?.colors) ? data.colors : [],
+    seasons: Array.isArray(data?.seasons) ? data.seasons : [],
+    events: Array.isArray(data?.events) ? data.events : [],
+  };
+}
+
+// GET /catalogue/filter?colors=&seasons=&events= -> enriched items
+// Each returned item includes color, season[] and events[]. With no
+// selections this returns the full enriched catalogue.
+export async function getFilteredCatalogue({
+  colors = [],
+  seasons = [],
+  events = [],
+} = {}) {
+  const params = new URLSearchParams();
+  if (colors.length) params.set("colors", colors.join(","));
+  if (seasons.length) params.set("seasons", seasons.join(","));
+  if (events.length) params.set("events", events.join(","));
+
+  const qs = params.toString();
+  const data = await request(`/catalogue/filter${qs ? `?${qs}` : ""}`);
+  return Array.isArray(data?.items) ? data.items : [];
 }
 
 // ============================================================

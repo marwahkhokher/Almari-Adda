@@ -21,7 +21,7 @@ import {
   User,
   Wand2,
 } from 'lucide-react';
-import Sidebar from '../components/Sidebar.jsx';
+import Sidebar from '../components/Sidebar2.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import ProfileDrawer from './ProfileScreen.jsx';
 import {

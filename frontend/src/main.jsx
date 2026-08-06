@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { AuthProvider } from './contexts/AuthContext.jsx'
 import { CatalogueProvider } from './store/CatalogueContext.jsx'
 
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
