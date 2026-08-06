@@ -50,6 +50,17 @@ app.include_router(chatbot_router)
 app.include_router(item_metadata_router)
 app.include_router(filters_router)
 
+
+@app.on_event("startup")
+async def _warmup_ml_models():
+    """Pre-load the CLIP classifier so the first chatbot message is fast."""
+    import logging
+    log = logging.getLogger(__name__)
+    log.info("Pre-warming CLIP classifier...")
+    from app.ml.pipeline import _classifier  # noqa: F401 — triggers model load
+    _classifier.get_text_embedding("warmup")
+    log.info("CLIP classifier ready.")
+
 _catalogue_cache = None
 
 @app.get("/")

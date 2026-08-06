@@ -147,14 +147,19 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     if state.get("error"):
         return {}
 
+    import time
+    t0 = time.time()
     from app.ml.pipeline import _classifier
     prompt_embedding = _classifier.get_text_embedding(state["user_message"])
+    print(f"[TIMING] embedding: {time.time() - t0:.2f}s")
 
+    t1 = time.time()
     try:
         raw_outfits = await fetch_outfit_suggestions(prompt_embedding=prompt_embedding)
     except Exception as e:
         logger.error("Fetching outfit suggestions failed: %s", e)
         return {"outfit_suggestions": [], "error": "I couldn't reach the outfit matching engine right now."}
+    print(f"[TIMING] fetch_outfit_suggestions: {time.time() - t1:.2f}s")
 
     occasion = state.get("occasion") or "everyday wear"
     color_constraint = state.get("color_constraint")
@@ -315,6 +320,7 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
         outfit_json=json.dumps(_strip_for_prompt(top_outfit) if filtered_outfits else {}),
     )
 
+    t2 = time.time()
     try:
         raw = await groq_client.complete_text(prompt)
         parsed = json.loads(raw)
@@ -323,9 +329,11 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
             reasoning=parsed.get("reasoning", ""),
             confidence_score=parsed.get("confidence_score"),
         )
+        print(f"[TIMING] groq explanation: {time.time() - t2:.2f}s")
         return {"outfit_suggestions": [suggestion]}
     except Exception as e:
         logger.error("Outfit explanation generation failed: %s", e)
+        print(f"[TIMING] groq explanation (failed): {time.time() - t2:.2f}s")
         return {"outfit_suggestions": [], "error": "I had trouble explaining the outfit suggestion."}
 
 

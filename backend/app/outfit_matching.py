@@ -1,6 +1,5 @@
 import logging
 
-from app.color_utils import get_dominant_color, is_color_compatible
 from app.formality_utils import get_formality, is_formality_compatible
 from app.embedding_utils import cosine_similarity
 
@@ -48,13 +47,44 @@ def get_valid_outfits(items, prompt_embedding=None):
     tops = [item for item in items if item.get("category") == "top"]
     bottoms = [item for item in items if item.get("category") == "bottom"]
 
-    color_cache = {}
+    def _get_color_name(item):
+        """Return pre-computed color name if available, else None."""
+        return item.get("_cached_color")
 
-    def _get_color_cached(item):
-        item_id = item.get("id")
-        if item_id not in color_cache:
-            color_cache[item_id] = get_dominant_color(item.get("image_url", ""))
-        return color_cache[item_id]
+    def _are_colors_compatible_by_name(color_a, color_b):
+        """Quick string-based color compatibility check using pre-stored color names."""
+        if not color_a or not color_b:
+            return True  # skip check if either color is unknown
+
+        NEUTRALS = {"black", "white", "gray", "dark gray", "light gray", "beige", "tan", "cream"}
+        if color_a in NEUTRALS or color_b in NEUTRALS:
+            return True
+
+        # Same color family is always compatible
+        if color_a == color_b:
+            return True
+
+        # Known good pairings (analogous / complementary)
+        COMPATIBLE_PAIRS = {
+            frozenset({"blue", "navy blue"}),
+            frozenset({"blue", "white"}),
+            frozenset({"red", "dark red"}),
+            frozenset({"pink", "red"}),
+            frozenset({"green", "dark green"}),
+            frozenset({"brown", "dark brown"}),
+            frozenset({"blue", "brown"}),
+            frozenset({"blue", "orange"}),
+            frozenset({"navy blue", "brown"}),
+            frozenset({"navy blue", "tan"}),
+            frozenset({"green", "brown"}),
+            frozenset({"teal", "brown"}),
+            frozenset({"purple", "pink"}),
+            frozenset({"red", "blue"}),
+            frozenset({"yellow", "blue"}),
+            frozenset({"green", "yellow"}),
+        }
+
+        return frozenset({color_a, color_b}) in COMPATIBLE_PAIRS
 
     def _score(outfit_embeddings):
         if prompt_embedding is None:
@@ -81,13 +111,11 @@ def get_valid_outfits(items, prompt_embedding=None):
             if not is_formality_compatible(top_formality, bottom_formality):
                 continue
 
-            try:
-                top_color = _get_color_cached(top)
-                bottom_color = _get_color_cached(bottom)
-                if top_color and bottom_color and not is_color_compatible(top_color, bottom_color):
-                    continue
-            except Exception as e:
-                logger.warning("Color check skipped for top=%s bottom=%s: %s", top.get("id"), bottom.get("id"), e)
+            # Use pre-computed color names — NO image downloads
+            top_color = _get_color_name(top)
+            bottom_color = _get_color_name(bottom)
+            if not _are_colors_compatible_by_name(top_color, bottom_color):
+                continue
 
             similarity = _score([top.get("embedding"), bottom.get("embedding")])
 
