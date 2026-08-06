@@ -68,9 +68,26 @@ export class ApiError extends Error {
 export async function getCatalogue() {
   const data = await request("/catalogue");
 
-  return Array.isArray(data?.items)
-    ? data.items
-    : [];
+  console.log("Raw catalogue response:", data);
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.items)) {
+    return data.items;
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+
+  console.warn(
+    "Unexpected /catalogue response format:",
+    data
+  );
+
+  return [];
 }
 
 // DELETE /catalogue/{item_id}
@@ -100,6 +117,18 @@ export async function toggleFavorite(itemId, isFavorite) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ is_favorite: isFavorite }),
+  });
+}
+
+export async function incrementTimesWorn(itemIds) {
+  return request("/item-metadata/increment-worn", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      item_ids: itemIds,
+    }),
   });
 }
 
@@ -161,13 +190,6 @@ export async function updateItemMetadata(itemId, metadata) {
 
 
 // POST /item-metadata/increment-worn
-export async function incrementTimesWorn(itemIds) {
-  return request("/item-metadata/increment-worn", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ item_ids: itemIds }),
-  });
-}
 
 // ============================================================
 // Upload

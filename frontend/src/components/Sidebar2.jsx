@@ -1,9 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { X } from 'lucide-react';
+
+import {
+  X,
+  LayoutDashboard,
+  Shirt,
+  WandSparkles,
+  Layers3,
+  Upload,
+  MessageCircleMore,
+} from 'lucide-react';
 
 export default function Sidebar({
-  navItems,
+  navItems = [],
   onNavigate,
   onSignOut,
   onClose,
@@ -14,10 +23,11 @@ export default function Sidebar({
   const getActiveLabel = () => {
     const pathname = location.pathname;
 
-    if (
-      pathname === '/dashboard' ||
-      pathname === '/closet'
-    ) {
+    if (pathname === '/dashboard') {
+      return 'Dashboard';
+    }
+
+    if (pathname === '/closet') {
       return 'Closet';
     }
 
@@ -29,15 +39,18 @@ export default function Sidebar({
       return 'Upload Item';
     }
 
-    if (pathname === '/build-outfit') {
+    if (
+      pathname === '/build-outfit' ||
+      pathname === '/outfit-builder'
+    ) {
       return 'Build Outfit';
     }
 
     if (pathname === '/chatbot') {
-      return 'Stylist AI';
+      return 'AI Stylist';
     }
 
-    return 'Closet';
+    return 'Dashboard';
   };
 
   const [activeLabel, setActiveLabel] = useState(
@@ -49,69 +62,115 @@ export default function Sidebar({
   }, [location.pathname]);
 
   /*
-    These positions are matched to the generated
-    almari-sidebar.png artwork.
+    Visible sidebar buttons.
+
+    The route keys let this component locate the correct
+    item even if navItems is arranged in a different order.
   */
-  const buttonPositions = [
+  const sidebarButtons = [
     {
-      label: 'Closet',
-      top: '28.7%',
-      height: '7.1%',
+      label: 'Dashboard',
+      route: '/dashboard',
+      alternateRoutes: [],
+      icon: LayoutDashboard,
     },
     {
+  label: 'Closet',
+  route: '/closet',
+  alternateRoutes: [],
+  icon: Shirt,
+},
+    {
       label: 'Visualizer',
-      top: '35.8%',
-      height: '7.1%',
+      route: '/visualize',
+      alternateRoutes: [],
+      icon: WandSparkles,
     },
     {
       label: 'Upload Item',
-      top: '42.9%',
-      height: '7.1%',
+      route: '/upload',
+      alternateRoutes: [],
+      icon: Upload,
     },
     {
       label: 'Build Outfit',
-      top: '50%',
-      height: '7.1%',
+      route: '/build-outfit',
+      alternateRoutes: ['/outfit-builder'],
+      icon: Layers3,
     },
     {
-      label: 'Stylist AI',
-      top: '57.1%',
-      height: '7.1%',
+      label: 'AI Stylist',
+      route: '/chatbot',
+      alternateRoutes: [],
+      icon: MessageCircleMore,
     },
   ];
 
-  // Everything routes through the parent's onNavigate — that's
-  // the single source of truth for what happens on a click (it
-  // already does navigate(navItem.route) or the action-based
-  // fallback). Sidebar itself doesn't decide navigation, it just
-  // reports the click and, on mobile, closes the drawer.
-  const handleSidebarClick = (navItem, position) => {
-    setActiveLabel(position.label);
+  const findNavItem = (button, index) => {
+    const matchingItem = navItems.find((item) => {
+      const itemRoute = item?.route || item?.path;
 
-    onNavigate?.(navItem);
+      const labelMatches = [
+        button.label,
+        button.label === 'AI Stylist'
+          ? 'Stylist AI'
+          : button.label,
+      ].some(
+        (label) =>
+          item?.label
+            ?.toLowerCase()
+            .trim() === label.toLowerCase()
+      );
 
-    if (mobile && onClose) {
-      onClose();
+      const routeMatches =
+        itemRoute === button.route ||
+        button.alternateRoutes.includes(itemRoute);
+
+      return labelMatches || routeMatches;
+    });
+
+    return matchingItem || { label: button.label, route: button.route };
+  };
+
+  const handleSidebarClick = (button, index) => {
+    const navItem = findNavItem(button, index);
+
+    setActiveLabel(button.label);
+
+    if (navItem) {
+      onNavigate?.(navItem);
+    }
+
+    if (mobile) {
+      onClose?.();
     }
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#3b2113]">
-      {/* Sidebar artwork */}
+    <aside className="relative h-full w-full overflow-hidden bg-[#3b2113]">
+      {/* Background artwork */}
       <img
         src="/plain.png"
-        alt="Almari Adda sidebar"
-        className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none object-fill"
+        alt=""
+        aria-hidden="true"
+        className="
+          pointer-events-none
+          absolute inset-0 z-0
+          h-full w-full
+          select-none object-fill
+        "
         draggable={false}
         onError={(event) => {
           console.error(
-            'Sidebar image failed to load. Expected: public/plain.png'
+            'Sidebar image failed to load. Expected public/plain.png'
           );
 
-          event.currentTarget.style.display =
-            'none';
+          event.currentTarget.style.display = 'none';
         }}
       />
+
+      {/* Dark layer to keep buttons readable */}
+      <div className="pointer-events-none absolute inset-0 z-[1] bg-[#241108]/10" />
 
       {/* Mobile close button */}
       {mobile && (
@@ -119,138 +178,251 @@ export default function Sidebar({
           type="button"
           onClick={onClose}
           aria-label="Close sidebar"
-          className="absolute right-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-[#d8b87a]/50 bg-[#2a140b]/80 text-[#f5e6cf] shadow-lg backdrop-blur transition hover:bg-[#4a2818]"
+          className="
+            absolute right-3 top-3 z-50
+            flex h-8 w-8
+            items-center justify-center
+            rounded-full
+            border border-[#d8b87a]/50
+            bg-[#2a140b]/85
+            text-[#f5e6cf]
+            shadow-lg backdrop-blur
+            transition
+            hover:bg-[#4a2818]
+            focus-visible:outline-none
+            focus-visible:ring-2
+            focus-visible:ring-[#e1bd79]
+          "
         >
           <X size={17} />
         </button>
       )}
 
-      {/* Functional menu buttons */}
-      <nav className="absolute inset-0 z-20">
-        {buttonPositions.map(
-          (position, index) => {
-            const navItem = navItems[index];
+      {/* Visible navigation buttons */}
+      <nav
+        aria-label="Main navigation"
+        className="
+          absolute left-[10%] right-[10%]
+          top-[30%] z-20
+          flex flex-col gap-2.5
+        "
+      >
+        {sidebarButtons.map((button, index) => {
+          const Icon = button.icon;
+          const isActive =
+            activeLabel === button.label;
 
-            if (!navItem) {
-              return null;
-            }
-
-            const isActive =
-              activeLabel === position.label;
-
-            return (
-              <button
-                key={position.label}
-                type="button"
-                onClick={() =>
-                  handleSidebarClick(
-                    navItem,
-                    position
-                  )
-                }
-                aria-label={position.label}
-                aria-current={
-                  isActive ? 'page' : undefined
-                }
-                title={position.label}
-                className={`
-                group absolute left-[11.8%] w-[76.4%]
-                overflow-hidden rounded-[10px]
-                cursor-pointer
-                bg-transparent
+          return (
+            <button
+              key={button.label}
+              type="button"
+              onClick={() =>
+                handleSidebarClick(button, index)
+              }
+              aria-current={
+                isActive ? 'page' : undefined
+              }
+              className={`
+                group relative
+                flex min-h-[48px] w-[88%] mx-auto
+                items-center gap-3
+                overflow-hidden
+                rounded-xl
                 border
+                px-3.5 py-2
+                text-left
                 transition-all duration-300
                 focus-visible:outline-none
                 focus-visible:ring-2
-                focus-visible:ring-[#c99a55]
+                focus-visible:ring-[#e9c47b]
                 focus-visible:ring-offset-2
-                focus-visible:ring-offset-[#4a2918]
-                hover:brightness-[1.04]
-                active:scale-[0.99]
+                focus-visible:ring-offset-[#3b2113]
                 ${
                   isActive
-  ? `
-      border-[#7A5536]
-      border-[2px]
-      shadow-[0_0_12px_rgba(74,44,29,.25)]
-    `
+                    ? `
+                      border-[#e6c17a]
+                      bg-gradient-to-r
+                      from-[#4a2919]/95
+                      via-[#5b3621]/95
+                      to-[#422416]/95
+                      text-[#fff4dc]
+                      shadow-[0_7px_18px_rgba(24,10,4,0.34),inset_0_1px_0_rgba(255,225,170,0.25)]
+                      -translate-y-[1px]
+                    `
                     : `
-                      border-transparent
-                      hover:border-[#8B6444]
-                      hover:shadow-[0_0_10px_rgba(74,44,29,.20)]
+                      border-[#8b6444]/55
+                      bg-[#65402b]/72
+                      text-[#f1dfc5]
+                      shadow-[0_5px_12px_rgba(25,10,4,0.18)]
+                      backdrop-blur-[2px]
+                      hover:-translate-y-[1px]
+                      hover:border-[#d6ad6a]
+                      hover:bg-[#59341f]/95
+                      hover:text-[#fff5df]
+                      hover:shadow-[0_8px_18px_rgba(25,10,4,0.3)]
                     `
                 }
               `}
-                style={{
-                  top: position.top,
-                  height: position.height,
-                }}
+            >
+              {/* Selected button overlay */}
+              <span
+                className={`
+                  pointer-events-none absolute inset-0 rounded-xl
+                  transition-opacity duration-300
+                  ${isActive ? 'opacity-100' : 'opacity-0'}
+                `}
               >
+                <span className="absolute inset-0 rounded-xl bg-[#f3d49a]/14" />
+                <span className="absolute inset-[3px] rounded-[9px] border border-[#f2cf88]/35" />
+                <span className="absolute left-3 right-3 top-0 h-px bg-gradient-to-r from-transparent via-[#ffe3a4]/80 to-transparent" />
+              </span>
 
+              {/* Active left indicator */}
+              <span
+                className={`
+                  absolute bottom-2 left-0 top-2
+                  w-[4px]
+                  rounded-r-full
+                  bg-gradient-to-b
+                  from-[#ffe19d]
+                  via-[#c8954e]
+                  to-[#8d5b2d]
+                  transition-opacity duration-300
+                  ${
+                    isActive
+                      ? 'opacity-100'
+                      : 'opacity-0'
+                  }
+                `}
+              />
 
-                {/* Active left marker */}
-               {/* Active overlay */}
-<span
-  className={`
-    pointer-events-none
-    absolute
-    inset-0
-    rounded-[10px]
-    transition-opacity
-    duration-300
-    ${isActive ? 'opacity-100' : 'opacity-0'}
-  `}
+              {/* Hover shine */}
+              <span
+                className="
+                  pointer-events-none
+                  absolute inset-y-0
+                  left-[-45%]
+                  w-[32%]
+                  skew-x-[-18deg]
+                  bg-white/10
+                  opacity-0
+                  transition-all duration-500
+                  group-hover:left-[120%]
+                  group-hover:opacity-100
+                "
+              />
+
+              {/* Icon */}
+              <span
+                className={`
+                  relative z-10
+                  flex h-8 w-8
+                  shrink-0
+                  items-center justify-center
+                  rounded-lg
+                  border
+                  transition-colors duration-300
+                  ${
+                    isActive
+                      ? `
+                        border-[#e5bd72]/70
+                        bg-[#2e170e]/65
+                        text-[#f8d993]
+                      `
+                      : `
+                        border-[#b38a59]/35
+                        bg-[#321a10]/45
+                        text-[#d8b178]
+                        group-hover:border-[#ddb875]/60
+                        group-hover:text-[#ffe0a0]
+                      `
+                  }
+                `}
+              >
+                <Icon
+                  size={16}
+                  strokeWidth={1.9}
+                />
+              </span>
+
+              {/* Real tab name */}
+              <span
+  className="
+    relative z-10
+    font-serif
+    text-[15px]
+    font-semibold
+    tracking-[0.04em]
+  "
 >
-  {/* Visible selected-state overlay */}
-  <span className="absolute inset-0 rounded-[10px] bg-[#3b2113]/30" />
-
-  {/* Left accent */}
-  <span className="absolute bottom-[15%] left-0 top-[15%] w-[5px] rounded-r-full bg-gradient-to-b from-[#9C7350] via-[#6B4329] to-[#3F2618]" />
-
-  {/* Top highlight */}
-  <span className="absolute left-2 right-2 top-0 h-[2px] rounded-full bg-[#F4D48B] shadow-[0_0_8px_rgba(255,220,120,.9)]" />
-
-  {/* Bottom highlight */}
-  <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-[#F4D48B] shadow-[0_0_8px_rgba(255,220,120,.7)]" />
+  {button.label}
 </span>
-                <div className="flex items-center gap-3 px-4 h-full relative z-10 text-left">
-                  {navItem?.icon && (
-                    <navItem.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#F4D48B]' : 'text-[#D4B16A]'}`} />
-                  )}
-                  <span className={`text-xs font-serif font-bold tracking-wider truncate ${isActive ? 'text-[#FFFDF9]' : 'text-[#F3E6CF]'}`}>
-                    {position.label}
-                  </span>
-                </div>
 
-                {/* Hover sheen */}
-                <span className="pointer-events-none absolute inset-y-0 left-[-40%] w-[35%] skew-x-[-16deg] bg-white/8 opacity-0 transition-all duration-500 group-hover:left-[115%] group-hover:opacity-100" />
-              </button>
-            );
-          }
-        )}
+              {/* Small selected dot */}
+              <span
+                className={`
+                  relative z-10
+                  ml-auto h-2 w-2
+                  rounded-full
+                  bg-[#f2ce85]
+                  shadow-[0_0_8px_rgba(242,206,133,0.85)]
+                  transition-all duration-300
+                  ${
+                    isActive
+                      ? 'scale-100 opacity-100'
+                      : 'scale-75 opacity-0'
+                  }
+                `}
+              />
+            </button>
+          );
+        })}
+      </nav>
 
-        {/* Drawer handle: sign out */}
-        <button
-          type="button"
-          onClick={onSignOut}
-          aria-label="Sign out"
-          title="Sign out"
+      {/* Sign-out area over the artwork handle */}
+      <button
+        type="button"
+        onClick={onSignOut}
+        aria-label="Sign out"
+        className="
+          group absolute
+          bottom-[9%] left-1/2 z-20
+          flex h-10 w-[48%]
+          -translate-x-1/2
+          items-center justify-center
+          rounded-full
+          border border-transparent
+          bg-transparent
+          transition-all duration-200
+          hover:border-[#d5aa6a]/30
+          hover:bg-[#2a140b]/35
+          focus-visible:outline-none
+          focus-visible:ring-2
+          focus-visible:ring-[#d5aa6a]
+        "
+      >
+        <span
           className="
-            group absolute left-[27%] top-[83%]
-            h-[5.5%] w-[46%]
-            rounded-full bg-transparent
-            transition-all duration-200
-            hover:bg-[#d5aa6a]/12
-            focus-visible:outline-none
-            focus-visible:ring-2
-            focus-visible:ring-[#d5aa6a]
+            rounded-full
+            bg-[#2b160d]/85
+            px-4 py-1.5
+            font-sans
+            text-[9px]
+            font-semibold
+            uppercase
+            tracking-[0.17em]
+            text-[#f2dbb1]
+            opacity-0
+            shadow-lg
+            backdrop-blur-sm
+            transition-opacity
+            group-hover:opacity-100
+            group-focus-visible:opacity-100
           "
         >
-          <span className="absolute left-1/2 top-1/2 rounded-full bg-[#d5aa6a]/20 px-3 py-1 font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f2dbb1] opacity-0 shadow-lg backdrop-blur-sm transition -translate-x-1/2 -translate-y-1/2 group-hover:opacity-100">
-            Sign out
-          </span>
-        </button>
-      </nav>
-    </div>
+          Sign out
+        </span>
+      </button>
+    </aside>
   );
 }

@@ -4,21 +4,34 @@ and wear tracking. Separate from the main catalogue data
 (category/subcategory/confidence), which comes from the ML pipeline.
 This is all user-editable.
 """
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List, Union
 import os
+
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from pathlib import Path
 
-load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / '.env', override=True)
+
+load_dotenv(
+    dotenv_path=Path(__file__).resolve().parent.parent / ".env",
+    override=True,
+)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-router = APIRouter(prefix="/item-metadata", tags=["item-metadata"])
+supabase: Client = create_client(
+    SUPABASE_URL,
+    SUPABASE_KEY,
+)
+
+router = APIRouter(
+    prefix="/item-metadata",
+    tags=["item-metadata"],
+)
 
 
 class ItemMetadataUpdate(BaseModel):
@@ -37,12 +50,26 @@ class WearItemsPayload(BaseModel):
 
 @router.get("/{item_id}")
 def get_item_metadata(item_id: str):
-    """Fetch metadata for a single item. Returns empty defaults if none exists yet."""
-    result = supabase.table("item_metadata").select("*").eq("item_id", item_id).execute()
+    """
+    Fetch metadata for a single item.
+
+    Returns empty defaults if no metadata row exists yet.
+    """
+    result = (
+        supabase.table("item_metadata")
+        .select("*")
+        .eq("item_id", item_id)
+        .execute()
+    )
+
     if result.data:
         row = result.data[0]
+
+        # Older metadata rows may not yet contain times_worn.
         row.setdefault("times_worn", 0)
+
         return row
+
     return {
         "item_id": item_id,
         "material": None,
@@ -57,8 +84,11 @@ def get_item_metadata(item_id: str):
 
 
 @router.put("/{item_id}")
-def update_item_metadata(item_id: str, payload: ItemMetadataUpdate):
-    """Create or update metadata for an item (upsert)."""
+def update_item_metadata(
+    item_id: str,
+    payload: ItemMetadataUpdate,
+):
+    """Create or update metadata for an item using an upsert."""
     data = payload.dict(exclude_unset=True)
     data["item_id"] = item_id
 
@@ -66,9 +96,19 @@ def update_item_metadata(item_id: str, payload: ItemMetadataUpdate):
         data["season"] = [data["season"]] if data["season"].strip() else []
 
     try:
-        result = supabase.table("item_metadata").upsert(data, on_conflict="item_id").execute()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save metadata: {str(e)}")
+        result = (
+            supabase.table("item_metadata")
+            .upsert(
+                data,
+                on_conflict="item_id",
+            )
+            .execute()
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save metadata: {str(error)}",
+        )
 
     return result.data[0] if result.data else data
 

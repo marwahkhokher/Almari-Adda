@@ -8,6 +8,7 @@ import {
   History,
   Plus,
   MessageSquare,
+  ShoppingBag,
   X,
   Lock,
   CheckCheck,
@@ -40,11 +41,36 @@ function Hanger({ className, ...props }) {
 }
 
 const NAV_ITEMS = [
-  { label: 'Closet', icon: Home, action: 'closet' },
-  { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
-  { label: 'Upload Item', icon: CloudUpload, route: '/upload' },
-  { label: 'Build Outfit', icon: Hanger, route: '/build-outfit' },
-  { label: 'Stylist AI', icon: Wand2, route: '/chatbot' },
+  {
+    label: 'Dashboard',
+    icon: Home,
+    route: '/dashboard',
+  },
+  {
+    label: 'Closet',
+    icon: ShoppingBag,
+    route: '/closet',
+  },
+  {
+    label: 'Visualizer',
+    icon: Sparkles,
+    route: '/visualize',
+  },
+  {
+    label: 'Upload Item',
+    icon: CloudUpload,
+    route: '/upload',
+  },
+  {
+    label: 'Build Outfit',
+    icon: Hanger,
+    route: '/build-outfit',
+  },
+  {
+    label: 'AI Stylist',
+    icon: Wand2,
+    route: '/chatbot',
+  },
 ];
 
 export default function ChatbotScreen() {
@@ -88,7 +114,6 @@ export default function ChatbotScreen() {
   const [sessions, setSessions] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const messagesEndRef = useRef(null);
-
   // Tracks which outfit cards have already been logged as "worn" so
   // the button can show a confirmed state and prevent double-clicks.
   const [wornOutfitIds, setWornOutfitIds] = useState(new Set());
@@ -223,7 +248,6 @@ export default function ChatbotScreen() {
     setMessages([{ ...initialMessage, id: Date.now().toString() }]);
     setIsHistoryOpen(false);
   };
-
   const handleWearOutfit = async (outfit, outfitKey) => {
     const itemIds = (outfit.items || []).map((i) => i.id).filter(Boolean);
     if (itemIds.length === 0 || wornOutfitIds.has(outfitKey)) return;
@@ -362,11 +386,20 @@ export default function ChatbotScreen() {
                         <Sparkles className="h-4 w-4 text-[#f3d7a4]" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="mb-1 text-sm font-bold text-[#7a2331]">AI Stylist</span>
-                        <div className="relative whitespace-pre-line rounded-2xl rounded-tl-sm border border-[#e6d5b8] bg-white p-4 text-base font-medium leading-relaxed text-[#3d2417] shadow-sm">
-                          {msg.text}
-                          <span className="mt-2 block text-right text-xs text-[#a89478]">{msg.timestamp}</span>
-                        </div>
+                        <span className="mb-1 text-sm font-bold text-[#7a2331]">
+  AI Stylist
+</span>
+
+{(!msg.outfitSuggestions ||
+  msg.outfitSuggestions.length === 0) && (
+  <div className="relative whitespace-pre-line rounded-2xl rounded-tl-sm border border-[#e6d5b8] bg-white p-4 text-base font-medium leading-relaxed text-[#3d2417] shadow-sm">
+    {msg.text}
+
+    <span className="mt-2 block text-right text-xs text-[#a89478]">
+      {msg.timestamp}
+    </span>
+  </div>
+)}
 
                         {msg.id === 'welcome' && (
                           <div className="mt-3 flex flex-wrap gap-2.5">

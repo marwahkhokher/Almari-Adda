@@ -48,13 +48,31 @@ function Hanger() {
 }
 
 const NAV_ITEMS = [
-  { label: 'Closet', icon: Home, action: 'closet' },
-  { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
-  { label: 'Upload Item', icon: CloudUpload, route: '/upload' },
-  { label: 'Build Outfit', icon: Hanger, route: '/build-outfit' },
-  { label: 'Stylist AI', icon: Wand2, route: '/chatbot' },
+  {
+    label: 'Dashboard',
+    route: '/dashboard',
+  },
+  {
+    label: 'Closet',
+    route: '/closet',
+  },
+  {
+    label: 'Visualizer',
+    route: '/visualize',
+  },
+  {
+    label: 'Upload Item',
+    route: '/upload',
+  },
+  {
+    label: 'Build Outfit',
+    route: '/build-outfit',
+  },
+  {
+    label: 'AI Stylist',
+    route: '/chatbot',
+  },
 ];
-
 function ChipGroup({ options, selected, onToggle, label, icon: Icon, index }) {
   return (
     <motion.div
@@ -221,7 +239,7 @@ export default function BuildOutfitScreen() {
 
             <div className="text-center">
               <h1 className="text-3xl md:text-4xl font-display font-bold text-[#3d2417]">
-                Design your <span className="text-[#7a2331]">look</span>
+                Design custom <span className="text-[#7a2331]">look</span>
               </h1>
               <div className="flex items-center justify-center gap-2 mt-2.5 mb-2">
                 <span className="w-8 h-px bg-[#c9a769]" />

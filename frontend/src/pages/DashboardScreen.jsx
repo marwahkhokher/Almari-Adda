@@ -7,9 +7,12 @@ import React, {
 
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import WardrobeInsights from '../components/dashboard/WardrobeInsights.jsx';
 
 import {
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
   CloudUpload,
   Heart,
   Home,
@@ -23,6 +26,7 @@ import {
 import { useAuth } from '../contexts/AuthContext.jsx';
 import {
   getCatalogue,
+  getItemMetadata,
   toggleFavorite,
 } from '../lib/api.js';
 
@@ -43,13 +47,31 @@ function Hanger() {
 /* Matches Visualize/Chatbot/BuildOutfit's NAV_ITEMS (5 entries —
    Sidebar2's buttonPositions array only has 5 slots). */
 const NAV_ITEMS = [
-  { label: 'Closet', icon: Home, action: 'closet' },
-  { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
-  { label: 'Upload Item', icon: CloudUpload, route: '/upload' },
-  { label: 'Build Outfit', icon: Hanger, route: '/build-outfit' },
-  { label: 'Stylist AI', icon: Wand2, route: '/chatbot' },
+  {
+    label: 'Dashboard',
+    route: '/dashboard',
+  },
+  {
+    label: 'Closet',
+    route: '/closet',
+  },
+  {
+    label: 'Visualizer',
+    route: '/visualize',
+  },
+  {
+    label: 'Upload Item',
+    route: '/upload',
+  },
+  {
+    label: 'Build Outfit',
+    route: '/build-outfit',
+  },
+  {
+    label: 'AI Stylist',
+    route: '/chatbot',
+  },
 ];
-
 const CATEGORY_TABS = [
   { key: 'all', label: 'All' },
   { key: 'tops', label: 'Tops' },
@@ -112,7 +134,19 @@ export default function DashboardScreen() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState(() => {
+  try {
+    const cachedItems = sessionStorage.getItem(
+      'almari-dashboard-items'
+    );
+
+    return cachedItems
+      ? JSON.parse(cachedItems)
+      : [];
+  } catch {
+    return [];
+  }
+});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -121,6 +155,7 @@ export default function DashboardScreen() {
   const [activeSeason, setActiveSeason] = useState('all');
   const [openFilterDropdown, setOpenFilterDropdown] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [clothingPage, setClothingPage] = useState(0);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -129,19 +164,75 @@ export default function DashboardScreen() {
   const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
 
   const fetchCatalogue = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await getCatalogue();
-      const catalogueItems = response?.items ?? response?.data ?? response ?? [];
-      setItems(Array.isArray(catalogueItems) ? catalogueItems : []);
-    } catch (fetchError) {
-      console.error('Catalogue error:', fetchError);
-      setError(fetchError?.message || 'We could not load your closet.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  setIsLoading(true);
+  setError(null);
+
+  try {
+    const catalogueItems = await getCatalogue();
+
+    const safeItems = Array.isArray(catalogueItems)
+      ? catalogueItems
+      : [];
+
+    const enrichedItems = await Promise.all(
+      safeItems.map(async (item) => {
+        try {
+          const metadata = await getItemMetadata(item.id);
+
+          return {
+            ...item,
+            color:
+              metadata?.color ??
+              item?.color ??
+              null,
+            season:
+              metadata?.season ??
+              item?.season ??
+              [],
+            times_worn: Number(
+              metadata?.times_worn ??
+                item?.times_worn ??
+                0
+            ),
+          };
+        } catch (metadataError) {
+          console.error(
+            `Failed to load metadata for item ${item.id}:`,
+            metadataError
+          );
+
+          return {
+            ...item,
+            times_worn: Number(
+              item?.times_worn ?? 0
+            ),
+          };
+        }
+      })
+    );
+
+    setItems(enrichedItems);
+
+sessionStorage.setItem(
+  'almari-dashboard-items',
+  JSON.stringify(enrichedItems)
+);
+  } catch (fetchError) {
+    console.error(
+      'Catalogue error:',
+      fetchError
+    );
+
+    setError(
+      fetchError?.message ||
+        'We could not load your closet.'
+    );
+
+    setItems([]);
+  } finally {
+    setIsLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchCatalogue();
@@ -215,8 +306,33 @@ export default function DashboardScreen() {
       return matchesCategory && matchesColor && matchesSeason;
     });
   }, [items, activeCategory, activeColor, activeSeason]);
+  const ITEMS_PER_PAGE = 10;
 
-  const recentItems = useMemo(() => items.slice(0, 4), [items]);
+const totalClothingPages = Math.max(
+  1,
+  Math.ceil(filteredItems.length / ITEMS_PER_PAGE)
+);
+
+const visibleClothingItems = useMemo(() => {
+  const startIndex = clothingPage * ITEMS_PER_PAGE;
+
+  return filteredItems.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
+}, [filteredItems, clothingPage]);
+
+useEffect(() => {
+  setClothingPage(0);
+}, [activeCategory]);
+
+useEffect(() => {
+  if (clothingPage >= totalClothingPages) {
+    setClothingPage(
+      Math.max(totalClothingPages - 1, 0)
+    );
+  }
+}, [clothingPage, totalClothingPages]);
 
   const handleNavItem = (navItem) => {
     setIsMobileSidebarOpen(false);
@@ -330,65 +446,14 @@ export default function DashboardScreen() {
             <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
               <div className="flex items-center gap-2 text-[#6b5645] text-sm">
                 <Shirt className="w-4 h-4 text-[#7a2331]" />
-                <span>{filteredItems.length} pieces in your almari</span>
+                <span>
+  {isLoading && items.length === 0
+    ? 'Loading your almari...'
+    : `${items.length} pieces in your almari`}
+</span>
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="relative">
-                  <button
-                    onClick={() => setOpenFilterDropdown((c) => (c === 'colors' ? null : 'colors'))}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-[#e6d5b8] bg-white text-[#6b5645] hover:border-[#7a2331] hover:text-[#7a2331] transition"
-                  >
-                    Colors <span className="text-[10px]">▾</span>
-                  </button>
-                  {openFilterDropdown === 'colors' && (
-                    <div className="absolute right-0 mt-2 w-40 max-h-64 overflow-y-auto bg-white border border-[#e6d5b8] rounded-xl shadow-lg p-1.5 z-20">
-                      <button
-                        onClick={() => { setActiveColor('all'); setOpenFilterDropdown(null); }}
-                        className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${activeColor === 'all' ? 'bg-[#f3e6cf] text-[#7a2331]' : 'text-[#3d2417] hover:bg-[#f3e6cf]'}`}
-                      >
-                        All colors
-                      </button>
-                      {colorOptions.map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => { setActiveColor(color); setOpenFilterDropdown(null); }}
-                          className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${normalize(activeColor) === normalize(color) ? 'bg-[#f3e6cf] text-[#7a2331]' : 'text-[#3d2417] hover:bg-[#f3e6cf]'}`}
-                        >
-                          {color}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="relative">
-                  <button
-                    onClick={() => setOpenFilterDropdown((c) => (c === 'seasons' ? null : 'seasons'))}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border border-[#e6d5b8] bg-white text-[#6b5645] hover:border-[#7a2331] hover:text-[#7a2331] transition"
-                  >
-                    Seasons <span className="text-[10px]">▾</span>
-                  </button>
-                  {openFilterDropdown === 'seasons' && (
-                    <div className="absolute right-0 mt-2 w-36 bg-white border border-[#e6d5b8] rounded-xl shadow-lg p-1.5 z-20">
-                      <button
-                        onClick={() => { setActiveSeason('all'); setOpenFilterDropdown(null); }}
-                        className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${activeSeason === 'all' ? 'bg-[#f3e6cf] text-[#7a2331]' : 'text-[#3d2417] hover:bg-[#f3e6cf]'}`}
-                      >
-                        All seasons
-                      </button>
-                      {SEASON_OPTIONS.map((season) => (
-                        <button
-                          key={season}
-                          onClick={() => { setActiveSeason(season); setOpenFilterDropdown(null); }}
-                          className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs capitalize ${activeSeason === season ? 'bg-[#f3e6cf] text-[#7a2331]' : 'text-[#3d2417] hover:bg-[#f3e6cf]'}`}
-                        >
-                          {season}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
 
@@ -422,74 +487,118 @@ export default function DashboardScreen() {
               </div>
             )}
 
-            {isLoading ? (
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="aspect-square rounded-xl bg-white/60 border border-[#e6d5b8] animate-pulse" />
-                ))}
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-16 border border-dashed border-[#e6d5b8] rounded-xl">
-                <Shirt size={42} strokeWidth={1.2} className="text-[#a89478] mb-3" />
-                <h3 className="font-display text-lg font-bold text-[#3d2417] mb-1">No pieces found</h3>
-                <p className="text-sm text-[#8a7360] mb-5">Try another category or upload a new item.</p>
-                <button
-                  onClick={() => navigate('/upload')}
-                  className="rounded-xl bg-[#7a2331] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#631b28]"
-                >
-                  Add New Item
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
-                {filteredItems.map((item) => (
-                  <motion.div
-                    key={item.id}
-                    whileHover={{ y: -3 }}
-                    onClick={() => handleItemClick(item)}
-                    className="relative aspect-square rounded-xl bg-white border border-[#e6d5b8] overflow-hidden cursor-pointer hover:border-[#7a2331] transition-all"
-                  >
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={getDisplayName(item)} className="w-full h-full object-contain p-1.5" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <Shirt size={32} strokeWidth={1.2} className="text-[#a89478]" />
-                      </div>
-                    )}
+            {isLoading && items.length === 0 ? (
+  <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 justify-items-center">
+    {Array.from({ length: ITEMS_PER_PAGE }).map((_, index) => (
+      <div
+        key={index}
+        className="aspect-square animate-pulse rounded-xl border border-[#e6d5b8] bg-white/60"
+      />
+    ))}
+  </div>
+) : filteredItems.length === 0 ? (
+  <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#e6d5b8] py-16 text-center">
+    <Shirt
+      size={42}
+      strokeWidth={1.2}
+      className="mb-3 text-[#a89478]"
+    />
 
-                    <button
-                      onClick={(e) => handleToggleFavorite(e, item)}
-                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center text-[#a89478] hover:text-[#7a2331] transition shadow-sm"
-                    >
-                      <Heart className={`w-3.5 h-3.5 ${item.is_favorite ? 'fill-[#7a2331] text-[#7a2331]' : ''}`} />
-                    </button>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </div>
+    <h3 className="mb-1 font-display text-lg font-bold text-[#3d2417]">
+      No pieces found
+    </h3>
 
-          {/* RECENTLY ADDED */}
-          {recentItems.length > 0 && (
-            <div className="mt-6 bg-[#FCF6EC] rounded-3xl border border-[#e6d5b8] shadow-[0_8px_30px_rgba(61,36,23,0.08)] p-4 md:p-6">
-              <p className="text-sm font-semibold text-[#3d2417] mb-4">Recently Added</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {recentItems.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => handleItemClick(item)}
-                    className="aspect-square rounded-xl bg-white border border-[#e6d5b8] cursor-pointer hover:border-[#7a2331] transition flex items-center justify-center"
-                  >
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={getDisplayName(item)} className="w-full h-full object-contain p-1.5" />
-                    ) : (
-                      <Shirt size={32} strokeWidth={1.2} className="text-[#a89478]" />
-                    )}
-                  </div>
-                ))}
-              </div>
+    <p className="mb-5 text-sm text-[#8a7360]">
+      Try another category or upload a new item.
+    </p>
+
+    <button
+      type="button"
+      onClick={() => navigate('/upload')}
+      className="rounded-xl bg-[#7a2331] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#631b28]"
+    >
+      Add New Item
+    </button>
+  </div>
+) : (
+  <>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 justify-items-center">
+      {visibleClothingItems.map((item) => (
+        <motion.div
+          key={item.id}
+          whileHover={{ y: -3 }}
+          onClick={() => handleItemClick(item)}
+          className="relative w-[92%] h-[200px] cursor-pointer overflow-hidden rounded-xl border border-[#e6d5b8] bg-white transition-all hover:border-[#7a2331]"
+        >
+          {item.image_url ? (
+            <img
+              src={item.image_url}
+              alt={getDisplayName(item)}
+              className="h-full w-full object-contain p-1.5"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Shirt
+                size={32}
+                strokeWidth={1.2}
+                className="text-[#a89478]"
+              />
             </div>
           )}
+
+        </motion.div>
+      ))}
+    </div>
+
+    {filteredItems.length > ITEMS_PER_PAGE && (
+      <div className="mt-5 flex items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={() =>
+            setClothingPage((currentPage) =>
+              Math.max(currentPage - 1, 0)
+            )
+          }
+          disabled={clothingPage === 0}
+          aria-label="Previous clothing items"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#e6d5b8] bg-white text-[#3d2417] transition hover:border-[#7a2331] hover:text-[#7a2331] disabled:cursor-not-allowed disabled:opacity-35"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        <span className="min-w-[70px] text-center text-xs font-medium text-[#8a7360]">
+          {clothingPage + 1} of {totalClothingPages}
+        </span>
+
+        <button
+          type="button"
+          onClick={() =>
+            setClothingPage((currentPage) =>
+              Math.min(
+                currentPage + 1,
+                totalClothingPages - 1
+              )
+            )
+          }
+          disabled={
+            clothingPage === totalClothingPages - 1
+          }
+          aria-label="Next clothing items"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#e6d5b8] bg-white text-[#3d2417] transition hover:border-[#7a2331] hover:text-[#7a2331] disabled:cursor-not-allowed disabled:opacity-35"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    )}
+  </>
+)}
+          </div>
+        <WardrobeInsights
+          items={items}
+          onItemClick={handleItemClick}
+          onBuildOutfit={() => navigate('/build-outfit')}
+          onAskStylist={() => navigate('/chatbot')}
+        />
         </main>
       </div>
 
