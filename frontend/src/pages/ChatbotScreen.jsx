@@ -16,6 +16,9 @@ import {
   Menu,
   User,
   Wand2,
+  RotateCcw,
+  Shirt,
+  Check,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar2.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -24,6 +27,7 @@ import {
   sendChatMessage,
   getUserChatSessions,
   getChatSessionHistory,
+  incrementTimesWorn,
 } from '../lib/api.js';
 
 function Hanger() {
@@ -35,8 +39,6 @@ function Hanger() {
   );
 }
 
-/* Matches VisualizeScreen's NAV_ITEMS (5 entries — Sidebar2's
-   buttonPositions array only has 5 slots). */
 const NAV_ITEMS = [
   { label: 'Closet', icon: Home, action: 'closet' },
   { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
@@ -86,6 +88,11 @@ export default function ChatbotScreen() {
   const [sessions, setSessions] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // Tracks which outfit cards have already been logged as "worn" so
+  // the button can show a confirmed state and prevent double-clicks.
+  const [wornOutfitIds, setWornOutfitIds] = useState(new Set());
+  const [wearingOutfitId, setWearingOutfitId] = useState(null);
 
   const initialMessage = {
     id: 'welcome',
@@ -217,6 +224,26 @@ export default function ChatbotScreen() {
     setIsHistoryOpen(false);
   };
 
+  const handleWearOutfit = async (outfit, outfitKey) => {
+    const itemIds = (outfit.items || []).map((i) => i.id).filter(Boolean);
+    if (itemIds.length === 0 || wornOutfitIds.has(outfitKey)) return;
+
+    setWearingOutfitId(outfitKey);
+    try {
+      await incrementTimesWorn(itemIds);
+      setWornOutfitIds((prev) => new Set(prev).add(outfitKey));
+    } catch (e) {
+      console.error('Failed to log worn outfit', e);
+      alert('Could not log this outfit as worn. Please check your connection and try again.');
+    } finally {
+      setWearingOutfitId(null);
+    }
+  };
+
+  const handleRegenerate = (originalPrompt) => {
+    handleSend(`${originalPrompt} (suggest something different this time)`);
+  };
+
   const presetChips = [
     { label: 'Dinner date', icon: '🍽️' },
     { label: 'Casual day out', icon: '☀️' },
@@ -268,7 +295,7 @@ export default function ChatbotScreen() {
         <Sidebar navItems={NAV_ITEMS} onNavigate={handleNavItem} onSignOut={handleSignOut} />
       </aside>
 
-      {/* MAIN CONTENT — same shape as VisualizeScreen */}
+      {/* MAIN CONTENT */}
       <div className="flex min-h-screen flex-col pt-16 lg:ml-[260px] lg:pt-0">
         <main className="flex-1 px-4 md:px-10 py-8 max-w-[1440px] w-full mx-auto flex flex-col">
           <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 mb-8">
@@ -304,7 +331,7 @@ export default function ChatbotScreen() {
             </div>
           </div>
 
-          {/* CHAT CARD — same border/shadow/radius treatment as VisualizeScreen's main card */}
+          {/* CHAT CARD */}
           <div className="flex-1 bg-[#FCF6EC] rounded-3xl border border-[#e6d5b8] shadow-[0_8px_30px_rgba(61,36,23,0.08)] p-4 md:p-6 flex flex-col min-h-[550px]">
             <div className="flex-1 space-y-6 overflow-y-auto pr-2 pb-2 pt-2">
               {messages.map((msg) => (
@@ -344,24 +371,57 @@ export default function ChatbotScreen() {
 
                         {msg.outfitSuggestions && msg.outfitSuggestions.length > 0 && (
                           <div className="mt-3 space-y-3">
-                            {msg.outfitSuggestions.map((outfit, idx) => (
-                              <div key={idx} className="rounded-2xl border border-[#e6d5b8] bg-white p-4 shadow-sm">
-                                <span className="mb-2 block text-sm font-bold text-[#7a2331]">Suggested Outfit</span>
-                                <div className="flex gap-3 overflow-x-auto pb-2">
-                                  {outfit.items?.map((item, i) => (
-                                    <div key={i} className="flex w-20 shrink-0 flex-col items-center rounded-xl border border-[#e6d5b8] bg-[#FCF6EC] p-2">
-                                      <img src={item.image_url} alt={item.category} className="mb-1 h-16 w-14 object-contain" />
-                                      <span className="w-full truncate text-center text-xs font-medium text-[#6b5645]">
-                                        {item.subcategory || item.category}
-                                      </span>
-                                    </div>
-                                  ))}
+                            {msg.outfitSuggestions.map((outfit, idx) => {
+                              const outfitKey = `${msg.id}-${idx}`;
+                              const isWorn = wornOutfitIds.has(outfitKey);
+                              const isWearing = wearingOutfitId === outfitKey;
+                              return (
+                                <div key={idx} className="rounded-2xl border border-[#e6d5b8] bg-white p-4 shadow-sm">
+                                  <span className="mb-2 block text-sm font-bold text-[#7a2331]">Suggested Outfit</span>
+                                  <div className="flex gap-3 overflow-x-auto pb-2">
+                                    {outfit.items?.map((item, i) => (
+                                      <div key={i} className="flex w-20 shrink-0 flex-col items-center rounded-xl border border-[#e6d5b8] bg-[#FCF6EC] p-2">
+                                        <img src={item.image_url} alt={item.category} className="mb-1 h-16 w-14 object-contain" />
+                                        <span className="w-full truncate text-center text-xs font-medium text-[#6b5645]">
+                                          {item.subcategory || item.category}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <p className="mt-2 rounded-xl border border-[#e6d5b8] bg-[#FCF6EC] p-2.5 text-sm leading-relaxed text-[#6b5645]">
+                                    {outfit.reasoning}
+                                  </p>
+                                  <div className="flex gap-2 mt-3">
+                                    <button
+                                      onClick={() => handleRegenerate(msg.text)}
+                                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[#7a2331]/30 text-[#7a2331] text-xs font-semibold py-2 hover:bg-[#7a2331]/5 transition"
+                                    >
+                                      <RotateCcw className="w-3.5 h-3.5" />
+                                      Regenerate
+                                    </button>
+                                    <button
+                                      onClick={() => handleWearOutfit(outfit, outfitKey)}
+                                      disabled={isWorn || isWearing}
+                                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#7a2331] text-white text-xs font-semibold py-2 hover:bg-[#631b28] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                      {isWorn ? (
+                                        <>
+                                          <Check className="w-3.5 h-3.5" />
+                                          Worn
+                                        </>
+                                      ) : isWearing ? (
+                                        <>Logging...</>
+                                      ) : (
+                                        <>
+                                          <Shirt className="w-3.5 h-3.5" />
+                                          Wear Outfit
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
                                 </div>
-                                <p className="mt-2 rounded-xl border border-[#e6d5b8] bg-[#FCF6EC] p-2.5 text-sm leading-relaxed text-[#6b5645]">
-                                  {outfit.reasoning}
-                                </p>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
