@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Shirt, RotateCcw } from "lucide-react";
 import {
   Sparkles,
   Paperclip,
@@ -18,6 +17,9 @@ import {
   Menu,
   User,
   Wand2,
+  RotateCcw,
+  Shirt,
+  Check,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar2.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -28,17 +30,16 @@ import {
   getChatSessionHistory,
   incrementTimesWorn,
 } from '../lib/api.js';
-function Hanger() {
+
+function Hanger({ className, ...props }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} {...props}>
       <path d="M12 5.5C12 3.8 13.3 2.5 15 2.5C16.7 2.5 18 3.8 18 5.5C18 7.2 16.5 8 15.5 8.8L12 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       <path d="M12 11L3 17.5C2.4 18 2.8 19 3.6 19H20.4C21.2 19 21.6 18 21 17.5L12 11Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
     </svg>
   );
 }
 
-/* Matches VisualizeScreen's NAV_ITEMS (5 entries — Sidebar2's
-   buttonPositions array only has 5 slots). */
 const NAV_ITEMS = [
   {
     label: 'Dashboard',
@@ -113,8 +114,10 @@ export default function ChatbotScreen() {
   const [sessions, setSessions] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const messagesEndRef = useRef(null);
+  // Tracks which outfit cards have already been logged as "worn" so
+  // the button can show a confirmed state and prevent double-clicks.
   const [wornOutfitIds, setWornOutfitIds] = useState(new Set());
-const [wearingOutfitId, setWearingOutfitId] = useState(null);
+  const [wearingOutfitId, setWearingOutfitId] = useState(null);
 
   const initialMessage = {
     id: 'welcome',
@@ -246,28 +249,24 @@ const [wearingOutfitId, setWearingOutfitId] = useState(null);
     setIsHistoryOpen(false);
   };
   const handleWearOutfit = async (outfit, outfitKey) => {
-  const itemIds = (outfit.items || [])
-    .map((item) => item.id)
-    .filter(Boolean);
+    const itemIds = (outfit.items || []).map((i) => i.id).filter(Boolean);
+    if (itemIds.length === 0 || wornOutfitIds.has(outfitKey)) return;
 
-  if (itemIds.length === 0 || wornOutfitIds.has(outfitKey)) {
-    return;
-  }
+    setWearingOutfitId(outfitKey);
+    try {
+      await incrementTimesWorn(itemIds);
+      setWornOutfitIds((prev) => new Set(prev).add(outfitKey));
+    } catch (e) {
+      console.error('Failed to log worn outfit', e);
+      alert('Could not log this outfit as worn. Please check your connection and try again.');
+    } finally {
+      setWearingOutfitId(null);
+    }
+  };
 
-  setWearingOutfitId(outfitKey);
-
-  try {
-    await incrementTimesWorn(itemIds);
-    setWornOutfitIds((prev) => new Set(prev).add(outfitKey));
-  } catch (err) {
-    console.error("Failed to log worn outfit", err);
-    alert("Could not log this outfit as worn.");
-  } finally {
-    setWearingOutfitId(null);
-  }
-};
-
-
+  const handleRegenerate = (originalPrompt) => {
+    handleSend(`${originalPrompt} (suggest something different this time)`);
+  };
 
   const presetChips = [
     { label: 'Dinner date', icon: '🍽️' },
@@ -284,22 +283,9 @@ const [wearingOutfitId, setWearingOutfitId] = useState(null);
           <Menu size={22} />
         </button>
         <div className="font-serif text-lg font-semibold tracking-[0.14em] text-[#7a2331]">ALMARI ADDA</div>
-        <button
-  type="button"
-  onClick={() => setIsProfileOpen(true)}
-  aria-label="Profile"
-  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-[#e6d5b8] bg-white text-[#3d2417] transition hover:bg-[#f3e6cf]"
->
-  {userAvatar ? (
-    <img
-      src={userAvatar}
-      alt={userName}
-      className="h-full w-full object-cover"
-    />
-  ) : (
-    <User className="h-4 w-4" />
-  )}
-</button>
+        <button type="button" onClick={() => setIsProfileOpen(true)} className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[#e6d5b8] bg-white">
+          {userAvatar ? <img src={userAvatar} alt={userName} className="h-full w-full object-cover" /> : <User size={17} />}
+        </button>
       </div>
 
       {/* MOBILE SIDEBAR */}
@@ -333,7 +319,7 @@ const [wearingOutfitId, setWearingOutfitId] = useState(null);
         <Sidebar navItems={NAV_ITEMS} onNavigate={handleNavItem} onSignOut={handleSignOut} />
       </aside>
 
-      {/* MAIN CONTENT — same shape as VisualizeScreen */}
+      {/* MAIN CONTENT */}
       <div className="flex min-h-screen flex-col pt-16 lg:ml-[260px] lg:pt-0">
         <main className="flex-1 px-4 md:px-10 py-8 max-w-[1440px] w-full mx-auto flex flex-col">
           <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 mb-8">
@@ -369,7 +355,7 @@ const [wearingOutfitId, setWearingOutfitId] = useState(null);
             </div>
           </div>
 
-          {/* CHAT CARD — same border/shadow/radius treatment as VisualizeScreen's main card */}
+          {/* CHAT CARD */}
           <div className="flex-1 bg-[#FCF6EC] rounded-3xl border border-[#e6d5b8] shadow-[0_8px_30px_rgba(61,36,23,0.08)] p-4 md:p-6 flex flex-col min-h-[550px]">
             <div className="flex-1 space-y-6 overflow-y-auto pr-2 pb-2 pt-2">
               {messages.map((msg) => (
@@ -419,50 +405,56 @@ const [wearingOutfitId, setWearingOutfitId] = useState(null);
                         {msg.outfitSuggestions && msg.outfitSuggestions.length > 0 && (
                           <div className="mt-3 space-y-3">
                             {msg.outfitSuggestions.map((outfit, idx) => {
-                                  const outfitKey = `${msg.id}-${idx}`;
-                                  const isWorn = wornOutfitIds.has(outfitKey);
-                                  const isWearing = wearingOutfitId === outfitKey;
-
-                                  return (
-                              <div key={idx} className="rounded-2xl border border-[#e6d5b8] bg-white p-4 shadow-sm">
-                                <span className="mb-2 block text-sm font-bold text-[#7a2331]">Suggested Outfit</span>
-                                <div className="flex gap-3 overflow-x-auto pb-2">
-                                  {outfit.items?.map((item, i) => (
-                                    <div key={i} className="flex w-20 shrink-0 flex-col items-center rounded-xl border border-[#e6d5b8] bg-[#FCF6EC] p-2">
-                                      <img src={item.image_url} alt={item.category} className="mb-1 h-16 w-14 object-contain" />
-                                      <span className="w-full truncate text-center text-xs font-medium text-[#6b5645]">
-                                        {item.subcategory || item.category}
-                                      </span>
-                                    </div>
-                                  ))}
+                              const outfitKey = `${msg.id}-${idx}`;
+                              const isWorn = wornOutfitIds.has(outfitKey);
+                              const isWearing = wearingOutfitId === outfitKey;
+                              return (
+                                <div key={idx} className="rounded-2xl border border-[#e6d5b8] bg-white p-4 shadow-sm">
+                                  <span className="mb-2 block text-sm font-bold text-[#7a2331]">Suggested Outfit</span>
+                                  <div className="flex gap-3 overflow-x-auto pb-2">
+                                    {outfit.items?.map((item, i) => (
+                                      <div key={i} className="flex w-20 shrink-0 flex-col items-center rounded-xl border border-[#e6d5b8] bg-[#FCF6EC] p-2">
+                                        <img src={item.image_url} alt={item.category} className="mb-1 h-16 w-14 object-contain" />
+                                        <span className="w-full truncate text-center text-xs font-medium text-[#6b5645]">
+                                          {item.subcategory || item.category}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <p className="mt-2 rounded-xl border border-[#e6d5b8] bg-[#FCF6EC] p-2.5 text-sm leading-relaxed text-[#6b5645]">
+                                    {outfit.reasoning}
+                                  </p>
+                                  <div className="flex gap-2 mt-3">
+                                    <button
+                                      onClick={() => handleRegenerate(msg.text)}
+                                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[#7a2331]/30 text-[#7a2331] text-xs font-semibold py-2 hover:bg-[#7a2331]/5 transition"
+                                    >
+                                      <RotateCcw className="w-3.5 h-3.5" />
+                                      Regenerate
+                                    </button>
+                                    <button
+                                      onClick={() => handleWearOutfit(outfit, outfitKey)}
+                                      disabled={isWorn || isWearing}
+                                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#7a2331] text-white text-xs font-semibold py-2 hover:bg-[#631b28] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                      {isWorn ? (
+                                        <>
+                                          <Check className="w-3.5 h-3.5" />
+                                          Worn
+                                        </>
+                                      ) : isWearing ? (
+                                        <>Logging...</>
+                                      ) : (
+                                        <>
+                                          <Shirt className="w-3.5 h-3.5" />
+                                          Wear Outfit
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
                                 </div>
-                                <p className="mt-2 rounded-xl border border-[#e6d5b8] bg-[#FCF6EC] p-2.5 text-sm leading-relaxed text-[#6b5645]">
-                                  {outfit.reasoning}
-                                </p>
-                                <div className="flex gap-2 mt-3">
-  <button
-    onClick={() => handleWearOutfit(outfit, outfitKey)}
-    disabled={isWorn || isWearing}
-    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#7a2331] text-white py-2 text-sm font-semibold hover:bg-[#631b28] disabled:opacity-60"
-  >
-    {isWorn ? (
-      <>
-        <Check className="w-4 h-4" />
-        Worn
-      </>
-    ) : isWearing ? (
-      <>Logging...</>
-    ) : (
-      <>
-        <Shirt className="w-4 h-4" />
-        Wear Outfit
-      </>
-    )}
-  </button>
-</div>
-                              </div>
-                            );
-})}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -512,7 +504,7 @@ const [wearingOutfitId, setWearingOutfitId] = useState(null);
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask your stylist anything..."
-                  className="w-full rounded-full border border-[#e6d5b8] bg-white py-3.5 pl-6 pr-24 text-base text-[#3d2417] shadow-inner placeholder:text-[#a89478] focus:outline-none focus:ring-2 focus:ring-[#7a2331]/20 focus:border-[#7a2331]"
+                  className="w-full rounded-full border border-[#e6d5b8] bg-[#FFFDF9] py-3.5 pl-6 pr-24 text-base text-[#3d2417] shadow-inner placeholder:text-[#a89478] focus:outline-none focus:ring-2 focus:ring-[#7a2331]/20 focus:border-[#7a2331]"
                 />
                 <div className="absolute right-3 flex items-center gap-2">
                   <button className="p-1.5 text-[#a89478] transition hover:text-[#7a2331]">

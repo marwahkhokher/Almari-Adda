@@ -48,59 +48,6 @@ class WearItemsPayload(BaseModel):
     item_ids: List[str]
 
 
-@router.post("/increment-worn")
-def increment_worn(payload: WearItemsPayload):
-    """
-    Increment times_worn by one for every item ID provided.
-
-    This endpoint should be called when the user confirms that they
-    wore an outfit.
-    """
-    updated = []
-
-    for item_id in payload.item_ids:
-        existing = (
-            supabase.table("item_metadata")
-            .select("*")
-            .eq("item_id", item_id)
-            .execute()
-        )
-
-        if existing.data:
-            current_count = (
-                existing.data[0].get("times_worn") or 0
-            )
-
-            result = (
-                supabase.table("item_metadata")
-                .update(
-                    {
-                        "times_worn": current_count + 1,
-                    }
-                )
-                .eq("item_id", item_id)
-                .execute()
-            )
-        else:
-            result = (
-                supabase.table("item_metadata")
-                .upsert(
-                    {
-                        "item_id": item_id,
-                        "times_worn": 1,
-                    },
-                    on_conflict="item_id",
-                )
-                .execute()
-            )
-
-        if result.data:
-            updated.append(result.data[0])
-
-    return {
-        "status": "ok",
-        "updated": updated,
-    }
 @router.get("/{item_id}")
 def get_item_metadata(item_id: str):
     """
@@ -162,3 +109,36 @@ def update_item_metadata(
 
     return result.data[0] if result.data else data
 
+
+@router.post("/increment-worn")
+def increment_worn(payload: WearItemsPayload):
+    """
+    Increments times_worn by 1 for each item in the given list.
+    Called when the user clicks "Wear Outfit" on a suggestion — logs
+    that they chose to wear every item in that outfit.
+    """
+    updated = []
+
+    for item_id in payload.item_ids:
+        existing = supabase.table("item_metadata").select("*").eq("item_id", item_id).execute()
+
+        if existing.data:
+            current = existing.data[0].get("times_worn") or 0
+            result = (
+                supabase.table("item_metadata")
+                .update({"times_worn": current + 1})
+                .eq("item_id", item_id)
+                .execute()
+            )
+        else:
+            # No metadata row yet for this item — create one with times_worn = 1
+            result = (
+                supabase.table("item_metadata")
+                .upsert({"item_id": item_id, "times_worn": 1}, on_conflict="item_id")
+                .execute()
+            )
+
+        if result.data:
+            updated.append(result.data[0])
+
+    return {"status": "ok", "updated": updated}

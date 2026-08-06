@@ -181,6 +181,16 @@ export async function updateItemMetadata(itemId, metadata) {
   });
 }
 
+
+// POST /item-metadata/increment-worn
+export async function incrementTimesWorn(itemIds) {
+  return request("/item-metadata/increment-worn", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ item_ids: itemIds }),
+  });
+}
+
 // ============================================================
 // Upload
 // ============================================================
@@ -268,6 +278,7 @@ export async function resetChatSession(sessionId) {
 // ============================================================
 
 // POST /visualize
+// POST /visualize
 export async function visualizeOutfit(
   itemIds,
   model = "female",
@@ -307,7 +318,7 @@ export async function getJobStatus(jobId) {
   return request(`/jobs/${jobId}`);
 }
 
-export async function pollJob(jobId, onProgress = null, intervalMs = 1500, maxAttempts = 80) {
+export async function pollJob(jobId, onProgress = null, intervalMs = 1500, maxAttempts = 200) {
   let attempts = 0;
   while (attempts < maxAttempts) {
     const job = await getJobStatus(jobId);
