@@ -52,6 +52,12 @@ def segment_clothing_item(image_path: str, output_path: str = None):
         raise ValueError(f"Could not read image at {image_path}")
 
     height, width = img.shape[:2]
+    max_dim = max(height, width)
+    if max_dim > 800:
+        scale = 800.0 / max_dim
+        img = cv2.resize(img, (int(width * scale), int(height * scale)), interpolation=cv2.INTER_AREA)
+        height, width = img.shape[:2]
+
     session = _get_session()
 
     input_tensor = _preprocess(img)
