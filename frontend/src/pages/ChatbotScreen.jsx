@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -12,24 +13,96 @@ import {
   MessageSquare,
   X,
   Lock,
-  CheckCheck
+  CheckCheck,
+  CloudUpload,
+  Heart,
+  Home,
+  Menu,
+  User,
+  Wand2,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar2.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { sendChatMessage, getUserChatSessions, getChatSessionHistory } from '../lib/api.js';
+import ProfileDrawer from './ProfileScreen.jsx';
+import {
+  sendChatMessage,
+  getUserChatSessions,
+  getChatSessionHistory,
+} from '../lib/api.js';
+
+function Hanger() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12 5.5C12 3.8 13.3 2.5 15 2.5C16.7 2.5 18 3.8 18 5.5C18 7.2 16.5 8 15.5 8.8L12 11"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M12 11L3 17.5C2.4 18 2.8 19 3.6 19H20.4C21.2 19 21.6 18 21 17.5L12 11Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const NAV_ITEMS = [
+  { label: 'Closet', icon: Home, action: 'closet' },
+  { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
+  { label: 'Upload Item', icon: CloudUpload, route: '/upload' },
+  { label: 'Build Outfit', icon: Hanger, route: '/build-outfit' },
+  { label: 'Stylist AI', icon: Wand2, route: '/chatbot' },
+  { label: 'Favorites', icon: Heart, action: 'favorites' },
+];
 
 export default function ChatbotScreen() {
+  const navigate = useNavigate();
   const auth = useAuth() || {};
-  const { user } = auth;
+  const { user, signOut } = auth;
   const userId = user?.id || user?.email || 'anonymous_user';
 
-  // Real first name only, no fake "Maya" placeholder
-  const rawName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest';
+  const rawName =
+    user?.user_metadata?.full_name ||
+    user?.email?.split('@')[0] ||
+    'Guest';
   const userName = rawName.split(' ')[0];
 
-  // Real uploaded avatar if present, otherwise null (renders initials badge)
   const userAvatar = user?.user_metadata?.avatar_url || null;
   const userInitial = userName?.[0]?.toUpperCase() || 'U';
+
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  };
+
+  const handleNavItem = (navItem) => {
+    setIsMobileSidebarOpen(false);
+
+    if (navItem.route) {
+      navigate(navItem.route);
+      return;
+    }
+
+    if (navItem.action === 'closet' || navItem.action === 'favorites') {
+      navigate('/dashboard');
+    }
+  };
 
   const [sessionId, setSessionId] = useState('');
   const [sessionTitle, setSessionTitle] = useState('New Conversation');
@@ -45,7 +118,7 @@ export default function ChatbotScreen() {
     id: 'welcome',
     text: `Good evening, ${userName}! ✨\nI'm your AI stylist, here to help you look and feel your best.\nWhat are we dressing for today?`,
     isUser: false,
-    timestamp: '6:45 PM'
+    timestamp: '6:45 PM',
   };
 
   const [messages, setMessages] = useState([initialMessage]);
@@ -73,7 +146,7 @@ export default function ChatbotScreen() {
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({
           behavior: 'smooth',
-          block: 'end'
+          block: 'end',
         });
       }, 50);
     });
@@ -91,7 +164,10 @@ export default function ChatbotScreen() {
       id: Date.now().toString(),
       text: messageText,
       isUser: true,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -108,11 +184,16 @@ export default function ChatbotScreen() {
 
       const botMessage = {
         id: (Date.now() + 1).toString(),
-        text: response.reply || "I've put together some great options from your almari!",
+        text:
+          response.reply ||
+          "I've put together some great options from your almari!",
         isUser: false,
         outfitSuggestions: response.outfit_suggestions || [],
         imageUrls: response.image_urls || [],
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
       };
 
       setMessages((prev) => [...prev, botMessage]);
@@ -123,8 +204,11 @@ export default function ChatbotScreen() {
           id: (Date.now() + 1).toString(),
           text: "Sorry, I couldn't reach the stylist engine right now. Please make sure the backend server is running.",
           isUser: false,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        },
       ]);
     } finally {
       setLoading(false);
@@ -153,14 +237,19 @@ export default function ChatbotScreen() {
       if (Array.isArray(history) && history.length > 0) {
         const formatted = history.map((m) => {
           const suggestions = m.outfit_suggestions || [];
-          const image_urls = suggestions.flatMap((s) => (s.items || []).map((i) => i.image_url));
+          const image_urls = suggestions.flatMap((s) =>
+            (s.items || []).map((i) => i.image_url),
+          );
           return {
             id: m.id,
             text: m.message,
             isUser: m.sender === 'user',
             outfitSuggestions: suggestions,
             imageUrls: image_urls,
-            timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: new Date(m.created_at).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
           };
         });
         setMessages(formatted);
@@ -191,76 +280,127 @@ export default function ChatbotScreen() {
   ];
 
   return (
-    <div className="flex h-screen w-screen bg-[#F7F1E8] font-serif text-[#3D2417] overflow-hidden select-none">
-      <Sidebar />
+    <div className="min-h-screen w-screen overflow-hidden bg-[#F7F1E8] font-serif text-[#3D2417] select-none">
+      <div className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#E6D5B8] bg-[#F9F4EC]/95 px-4 backdrop-blur lg:hidden">
+        <button
+          type="button"
+          onClick={() => setIsMobileSidebarOpen(true)}
+          className="rounded-full p-2 text-[#3D2417]"
+          aria-label="Open menu"
+        >
+          <Menu size={22} />
+        </button>
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-[#F7F1E8] px-5 py-4">
-        <div className="absolute top-0 right-0 w-64 h-64 pointer-events-none opacity-45 z-0">
-          <svg viewBox="0 0 200 200" fill="none" stroke="#C9B6A0" strokeWidth="1.5">
-            <path d="M200 0 C 140 30, 90 90, 80 180 M 160 20 C 130 50, 120 70, 110 110 M 180 60 C 140 80, 130 110, 130 140" />
-            <circle cx="160" cy="20" r="3" fill="#C9B6A0" />
-            <circle cx="110" cy="110" r="3" fill="#C9B6A0" />
-            <circle cx="180" cy="60" r="3" fill="#C9B6A0" />
-          </svg>
+        <div className="font-serif text-lg font-semibold tracking-[0.14em] text-[#7A2331]">
+          ALMARI ADDA
         </div>
 
-             {/* TOP BAR HEADER */}
-        <header className="h-14 flex items-center justify-between relative z-20 shrink-0 mb-3 px-2">
-          {/* Left spacer adjusted so search bar shifts slightly left */}
-          <div className="w-32 hidden md:block" />
+        <button
+          type="button"
+          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[#D6C5B4] bg-white"
+        >
+          {userAvatar ? (
+            <img
+              src={userAvatar}
+              alt={userName}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <User size={17} />
+          )}
+        </button>
+      </div>
 
-          {/* Centered Search Bar */}
-          <div className="w-96 mx-auto">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[#A89478]" />
-              <input
-                type="text"
-                placeholder="Search in your almari..."
-                className="w-full pl-11 pr-4 py-2 rounded-full bg-[#F3E6CF]/60 border border-[#E6D5B8] text-xs text-[#3D2417] placeholder-[#A89478] focus:outline-none focus:ring-1 focus:ring-[#7A2331]/30 shadow-inner"
-              />
-            </div>
-          </div>
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <>
+            <motion.button
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="fixed inset-0 z-[70] bg-black/40 lg:hidden"
+              aria-label="Close menu"
+            />
 
-          {/* Right Header Controls */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsHistoryOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#F3E6CF] text-[#7A2331] hover:bg-[#EBDBC0] transition text-xs font-semibold border border-[#E6D5B8] shadow-xs"
-              title="Chat History"
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              className="fixed bottom-0 left-0 top-0 z-[80] w-[260px] max-w-[88vw] lg:hidden"
             >
-              <History className="w-3.5 h-3.5" />
-              <span>History ({sessions.length})</span>
-            </button>
+              <Sidebar
+                navItems={NAV_ITEMS}
+                onNavigate={handleNavItem}
+                onSignOut={handleSignOut}
+                onClose={() => setIsMobileSidebarOpen(false)}
+                mobile
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-            <button className="p-2 text-[#8A7360] hover:bg-[#F3E6CF] rounded-full relative transition">
-              <Bell className="w-4 h-4" />
-              <span className="w-2 h-2 rounded-full bg-[#7A2331] absolute top-1.5 right-1.5" />
-            </button>
+      <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-[260px] lg:block">
+        <Sidebar
+          navItems={NAV_ITEMS}
+          onNavigate={handleNavItem}
+          onSignOut={handleSignOut}
+        />
+      </aside>
 
-            <div className="flex items-center gap-2 cursor-pointer">
-              {userAvatar ? (
-                <img src={userAvatar} alt={userName} className="w-8 h-8 rounded-full object-cover border border-[#C9A769]" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-[#7A2331] text-[#FFFDF9] flex items-center justify-center text-xs font-bold border border-[#C9A769] shrink-0">
-                  {userInitial}
-                </div>
-              )}
-              <span className="text-xs font-serif font-semibold text-[#3D2417]">{userName}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-[#8A7360]" />
+      <img
+        src="/bg.png"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 h-screen w-screen object-cover lg:left-[260px] lg:w-[calc(100vw-260px)]"
+      />
+
+      <main className="relative z-10 h-screen overflow-hidden pt-16 lg:ml-[260px] lg:pt-0">
+
+        <div className="relative z-10 mx-auto flex h-full max-w-6xl flex-col px-5 pb-5 pt-4 md:px-6 lg:pb-6 lg:pt-4">
+          <header className="relative z-20 mb-2 flex h-14 shrink-0 items-center justify-between px-2">
+            <div className="hidden w-32 md:block" />
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsHistoryOpen(true)}
+                className="flex items-center gap-1.5 rounded-full border border-[#E6D5B8] bg-[#F3E6CF] px-3.5 py-1.5 text-xs font-semibold text-[#7A2331] shadow-xs transition hover:bg-[#EBDBC0]"
+                title="Chat History"
+              >
+                <History className="h-3.5 w-3.5" />
+                <span>History ({sessions.length})</span>
+              </button>
+
+              <button
+  type="button"
+  onClick={() => setIsProfileOpen(true)}
+  aria-label="Profile"
+  className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#d5bda5] bg-[#dbc3aa] shadow-sm transition hover:bg-[#d3b89c]"
+>
+  <User size={18} className="text-[#4d382d]" />
+</button>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* CHAT CONTAINER BODY */}
-        <div className="flex-1 flex flex-col justify-between relative overflow-hidden z-10">
-          <div className="mb-3 text-left pl-2">
-            <h1 className="font-serif text-3xl font-bold text-[#3D2417] tracking-wide">AI Stylist</h1>
-            <p className="text-xs text-[#8A7360] mt-0.5 font-serif">Ask for outfit ideas, styling tips, and wardrobe help.</p>
-          </div>
+          <motion.div
+            className="mt-12 mb-5 shrink-0 text-center"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <h1 className="mb-1 font-serif text-4xl font-bold tracking-tight text-[#33231c] md:text-5xl">
+              AI Stylist
+            </h1>
+            <p className="font-sans text-sm text-[#75655a]">
+              Ask for outfit ideas, styling tips, and wardrobe help.
+            </p>
+          </motion.div>
 
-          {/* MAIN CARD CONTAINER — slightly bigger via reduced outer padding above */}
-          <div className="flex-1 rounded-3xl bg-[#FFFDF9] border border-[#EADCCF] p-6 md:p-8 flex flex-col justify-between relative shadow-sm overflow-hidden">
-            <div className="flex-1 overflow-y-auto pr-2 space-y-6 pt-2 pb-2">
+          <div className="relative flex min-h-0 h-[550px] flex-col overflow-hidden rounded-3xl border border-[#EADCCF] bg-[#FFFDF9] p-6 shadow-sm md:p-8">
+            <div className="flex-1 space-y-6 overflow-y-auto pb-2 pr-2 pt-2">
               {messages.map((msg) => (
                 <motion.div
                   key={msg.id}
@@ -270,26 +410,32 @@ export default function ChatbotScreen() {
                   className="flex flex-col space-y-3"
                 >
                   {!msg.isUser ? (
-                    <div className="flex items-start gap-3.5 max-w-[85%]">
-                      <div className="w-9 h-9 rounded-full bg-[#7A2331] text-[#FDFBF7] flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                        <Sparkles className="w-4 h-4 text-[#F3D7A4]" />
+                    <div className="flex max-w-[85%] items-start gap-3.5">
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#7A2331] text-[#FDFBF7] shadow-sm">
+                        <Sparkles className="h-4 w-4 text-[#F3D7A4]" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[12px] font-serif font-bold text-[#7A2331] mb-1">AI Stylist</span>
-                        <div className="bg-[#FBF8F3] border border-[#E8DCCF] text-[#3D2417] p-4 rounded-2xl rounded-tl-xs text-xs leading-relaxed shadow-2xs whitespace-pre-line relative">
+                        <span className="mb-1 text-sm font-bold text-[#7A2331]">
+                          AI Stylist
+                        </span>
+                        <div className="relative whitespace-pre-line rounded-2xl rounded-tl-xs border border-[#E8DCCF] bg-[#FBF8F3] p-4 text-base font-medium leading-relaxed text-[#3D2417] shadow-2xs">
                           {msg.text}
-                          <span className="block text-[10px] text-[#A89478] text-right mt-2 font-sans">
+                          <span className="mt-2 block text-right font-sans text-[10px] text-[#A89478]">
                             {msg.timestamp}
                           </span>
                         </div>
 
                         {msg.id === 'welcome' && (
-                          <div className="flex flex-wrap gap-2.5 mt-3">
+                          <div className="mt-3 flex flex-wrap gap-2.5">
                             {presetChips.map((chip) => (
                               <button
                                 key={chip.label}
-                                onClick={() => handleSend(`Can you suggest a ${chip.label.toLowerCase()} outfit?`)}
-                                className="px-4 py-2 rounded-xl bg-[#FDFBF7] border border-[#E8DCCF] hover:border-[#7A2331]/40 text-[#6B5645] hover:text-[#7A2331] text-xs flex items-center gap-2 transition shadow-2xs font-serif"
+                                onClick={() =>
+                                  handleSend(
+                                    `Can you suggest a ${chip.label.toLowerCase()} outfit?`,
+                                  )
+                                }
+                                className="flex items-center gap-2 rounded-xl border border-[#E8DCCF] bg-[#FDFBF7] px-4 py-2 text-xs text-[#6B5645] shadow-2xs transition hover:border-[#7A2331]/40 hover:text-[#7A2331]"
                               >
                                 <span>{chip.icon}</span>
                                 <span>{chip.label}</span>
@@ -298,41 +444,62 @@ export default function ChatbotScreen() {
                           </div>
                         )}
 
-                        {msg.outfitSuggestions && msg.outfitSuggestions.length > 0 && (
-                          <div className="mt-3 space-y-3">
-                            {msg.outfitSuggestions.map((outfit, idx) => (
-                              <div key={idx} className="bg-[#FBF8F3] border border-[#E8DCCF] rounded-2xl p-4 shadow-2xs">
-                                <span className="text-xs font-bold text-[#7A2331] block mb-2 font-serif">Suggested Outfit</span>
-                                <div className="flex gap-3 overflow-x-auto pb-2">
-                                  {outfit.items?.map((item, i) => (
-                                    <div key={i} className="flex flex-col items-center bg-[#F9F3EA] p-2 rounded-xl border border-[#E6D5B8] w-20 shrink-0">
-                                      <img src={item.image_url} alt={item.category} className="w-14 h-16 object-contain mb-1" />
-                                      <span className="text-[10px] text-[#6B5645] font-medium truncate w-full text-center">{item.subcategory || item.category}</span>
-                                    </div>
-                                  ))}
+                        {msg.outfitSuggestions &&
+                          msg.outfitSuggestions.length > 0 && (
+                            <div className="mt-3 space-y-3">
+                              {msg.outfitSuggestions.map((outfit, idx) => (
+                                <div
+                                  key={idx}
+                                  className="rounded-2xl border border-[#E8DCCF] bg-[#FBF8F3] p-4 shadow-2xs"
+                                >
+                                  <span className="mb-2 block text-sm font-bold text-[#7A2331]">
+                                    Suggested Outfit
+                                  </span>
+                                  <div className="flex gap-3 overflow-x-auto pb-2">
+                                    {outfit.items?.map((item, i) => (
+                                      <div
+                                        key={i}
+                                        className="flex w-20 shrink-0 flex-col items-center rounded-xl border border-[#E6D5B8] bg-[#F9F3EA] p-2"
+                                      >
+                                        <img
+                                          src={item.image_url}
+                                          alt={item.category}
+                                          className="mb-1 h-16 w-14 object-contain"
+                                        />
+                                        <span className="w-full truncate text-center text-[10px] font-medium text-[#6B5645]">
+                                          {item.subcategory || item.category}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <p className="mt-2 rounded-xl border border-[#E6D5B8] bg-[#F9F3EA] p-2.5 text-sm leading-relaxed text-[#6B5645]">
+                                    {outfit.reasoning}
+                                  </p>
                                 </div>
-                                <p className="text-xs text-[#6B5645] mt-2 bg-[#F9F3EA] p-2.5 rounded-xl border border-[#E6D5B8] leading-relaxed">{outfit.reasoning}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                              ))}
+                            </div>
+                          )}
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-start justify-end gap-3 self-end max-w-[80%] ml-auto">
+                    <div className="ml-auto flex max-w-[80%] items-start justify-end gap-3 self-end">
                       <div className="flex flex-col items-end">
-                        <div className="bg-[#F5DCD3] text-[#3D2417] p-3.5 px-4 rounded-2xl rounded-tr-xs text-xs leading-relaxed shadow-2xs border border-[#E8C5BA]">
+                        <div className="rounded-2xl rounded-tr-xs border border-[#E8C5BA] bg-[#F5DCD3] p-3.5 px-4 text-base font-medium leading-relaxed text-[#3D2417] shadow-2xs">
                           {msg.text}
-                          <span className="flex items-center justify-end gap-1 text-[9px] text-[#8A7360] text-right mt-1.5 font-sans">
+                          <span className="mt-1.5 flex items-center justify-end gap-1 text-right font-sans text-[9px] text-[#8A7360]">
                             <span>{msg.timestamp}</span>
-                            <CheckCheck className="w-3.5 h-3.5 text-[#7A2331]" />
+                            <CheckCheck className="h-3.5 w-3.5 text-[#7A2331]" />
                           </span>
                         </div>
                       </div>
                       {userAvatar ? (
-                        <img src={userAvatar} alt={userName} className="w-8.5 h-8.5 rounded-full object-cover border border-[#C9A769] shrink-0 mt-0.5" />
+                        <img
+                          src={userAvatar}
+                          alt={userName}
+                          className="mt-0.5 h-8.5 w-8.5 shrink-0 rounded-full border border-[#C9A769] object-cover"
+                        />
                       ) : (
-                        <div className="w-8.5 h-8.5 rounded-full bg-[#7A2331] text-[#FFFDF9] flex items-center justify-center text-xs font-bold border border-[#C9A769] shrink-0 mt-0.5">
+                        <div className="mt-0.5 flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-full border border-[#C9A769] bg-[#7A2331] text-xs font-bold text-[#FFFDF9]">
                           {userInitial}
                         </div>
                       )}
@@ -343,11 +510,11 @@ export default function ChatbotScreen() {
 
               {loading && (
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[#7A2331] text-[#FDFBF7] flex items-center justify-center shrink-0 shadow-sm">
-                    <Sparkles className="w-4 h-4 text-[#F3D7A4]" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#7A2331] text-[#FDFBF7] shadow-sm">
+                    <Sparkles className="h-4 w-4 text-[#F3D7A4]" />
                   </div>
-                  <div className="bg-[#FBF8F3] border border-[#E8DCCF] p-3.5 rounded-2xl text-xs text-[#8A7360] flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#7A2331] animate-ping" />
+                  <div className="flex items-center gap-2 rounded-2xl border border-[#E8DCCF] bg-[#FBF8F3] p-3.5 text-xs font-medium text-[#8A7360]">
+                    <span className="h-2 w-2 animate-ping rounded-full bg-[#7A2331]" />
                     <span>Styling your outfit...</span>
                   </div>
                 </div>
@@ -355,7 +522,7 @@ export default function ChatbotScreen() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="pt-3 border-t border-[#E8DCCF]">
+            <div className="border-t border-[#E8DCCF] pt-3">
               <div className="relative flex items-center">
                 <input
                   type="text"
@@ -363,23 +530,23 @@ export default function ChatbotScreen() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask your stylist anything..."
-                  className="w-full py-3.5 pl-6 pr-24 rounded-full bg-[#FFFDF9] border border-[#E8DCCF] text-xs text-[#3D2417] placeholder-[#A89478] focus:outline-none focus:ring-1 focus:ring-[#7A2331]/40 shadow-inner"
+                  className="w-full rounded-full border border-[#E8DCCF] bg-[#FFFDF9] py-3.5 pl-6 pr-24 text-base text-[#3D2417] shadow-inner placeholder:text-[#A89478] focus:outline-none focus:ring-1 focus:ring-[#7A2331]/40"
                 />
                 <div className="absolute right-3 flex items-center gap-2">
-                  <button className="p-1.5 text-[#A89478] hover:text-[#7A2331] transition">
-                    <Paperclip className="w-4 h-4" />
+                  <button className="p-1.5 text-[#A89478] transition hover:text-[#7A2331]">
+                    <Paperclip className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleSend()}
                     disabled={!input.trim() || loading}
-                    className="w-8.5 h-8.5 rounded-full bg-[#7A2331] hover:bg-[#5E1B26] disabled:opacity-40 text-[#FFFDF9] flex items-center justify-center transition shadow-sm"
+                    className="flex h-8.5 w-8.5 items-center justify-center rounded-full bg-[#7A2331] text-[#FFFDF9] shadow-sm transition hover:bg-[#5E1B26] disabled:opacity-40"
                   >
-                    <Send className="w-3.5 h-3.5 ml-0.5" />
+                    <Send className="ml-0.5 h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
-              <div className="flex items-center justify-center gap-1.5 mt-2.5 text-[10px] text-[#A89478]">
-                <Lock className="w-3 h-3 text-[#A89478]" />
+              <div className="mt-2.5 flex items-center justify-center gap-1.5 text-[10px] text-[#A89478]">
+                <Lock className="h-3 w-3 text-[#A89478]" />
                 <span>Your conversations are private and secure</span>
               </div>
             </div>
@@ -403,37 +570,43 @@ export default function ChatbotScreen() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-sm bg-[#F9F3EA] h-full shadow-2xl z-50 flex flex-col border-r border-[#E6D5B8]"
+              className="relative z-50 flex h-full w-full max-w-sm flex-col border-r border-[#E6D5B8] bg-[#F9F3EA] shadow-2xl"
             >
-              <div className="p-4 border-b border-[#E6D5B8] flex items-center justify-between bg-[#F3E6CF]">
+              <div className="flex items-center justify-between border-b border-[#E6D5B8] bg-[#F3E6CF] p-4">
                 <div className="flex items-center gap-2">
-                  <History className="w-5 h-5 text-[#7A2331]" />
-                  <span className="font-serif font-bold text-[#3D2417] text-base">Your Conversations</span>
+                  <History className="h-5 w-5 text-[#7A2331]" />
+                  <span className="text-base font-bold text-[#3D2417]">
+                    Your Conversations
+                  </span>
                 </div>
                 <button
                   onClick={() => setIsHistoryOpen(false)}
-                  className="p-1.5 text-[#8A7360] hover:text-[#3D2417] rounded-full hover:bg-[#EBDBC0]"
+                  className="rounded-full p-1.5 text-[#8A7360] hover:bg-[#EBDBC0] hover:text-[#3D2417]"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="p-3 border-b border-[#E6D5B8]">
+              <div className="border-b border-[#E6D5B8] p-3">
                 <button
                   onClick={handleNewChat}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#7A2331] hover:bg-[#5E1B26] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#7A2331] px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#5E1B26]"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="h-4 w-4" />
                   <span>Start New Conversation</span>
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              <div className="flex-1 space-y-2 overflow-y-auto p-3">
                 {sessions.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-48 text-center p-4">
-                    <MessageSquare className="w-8 h-8 text-[#A89478] mb-2" />
-                    <p className="text-[#6B5645] text-xs font-medium">No previous conversations yet.</p>
-                    <p className="text-[#8A7360] text-[11px] mt-1">Start chatting with the AI stylist to save history!</p>
+                  <div className="flex h-48 flex-col items-center justify-center p-4 text-center">
+                    <MessageSquare className="mb-2 h-8 w-8 text-[#A89478]" />
+                    <p className="text-xs font-medium text-[#6B5645]">
+                      No previous conversations yet.
+                    </p>
+                    <p className="mt-1 text-[11px] text-[#8A7360]">
+                      Start chatting with the AI stylist to save history!
+                    </p>
                   </div>
                 ) : (
                   sessions.map((s) => {
@@ -442,20 +615,36 @@ export default function ChatbotScreen() {
                       <button
                         key={s.id}
                         onClick={() => handleSelectSession(s)}
-                        className={`w-full text-left p-3 rounded-xl border transition-all flex flex-col gap-1 ${
+                        className={`flex w-full flex-col gap-1 rounded-xl border p-3 text-left transition-all ${
                           isActive
-                            ? 'bg-[#7a2331]/10 border-[#E8C5BA] shadow-xs'
-                            : 'bg-[#FFFDF9] border-[#E6D5B8] hover:border-[#7A2331]/30 hover:bg-[#F3E6CF]/50'
+                            ? 'border-[#E8C5BA] bg-[#7a2331]/10 shadow-xs'
+                            : 'border-[#E6D5B8] bg-[#FFFDF9] hover:border-[#7A2331]/30 hover:bg-[#F3E6CF]/50'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className={`text-xs font-bold truncate ${isActive ? 'text-[#7A2331]' : 'text-[#3D2417]'}`}>
+                          <span
+                            className={`truncate text-xs font-bold ${
+                              isActive ? 'text-[#7A2331]' : 'text-[#3D2417]'
+                            }`}
+                          >
                             {s.title || 'Styling Conversation'}
                           </span>
-                          {isActive && <span className="w-2 h-2 rounded-full bg-[#7A2331] shrink-0" />}
+                          {isActive && (
+                            <span className="h-2 w-2 shrink-0 rounded-full bg-[#7A2331]" />
+                          )}
                         </div>
-                        <span className="text-[10px] text-[#8A7360] font-medium">
-                          {s.updated_at ? new Date(s.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                        <span className="text-[10px] font-medium text-[#8A7360]">
+                          {s.updated_at
+                            ? new Date(s.updated_at).toLocaleDateString(
+                                undefined,
+                                {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                },
+                              )
+                            : ''}
                         </span>
                       </button>
                     );
@@ -466,6 +655,11 @@ export default function ChatbotScreen() {
           </div>
         )}
       </AnimatePresence>
+
+      <ProfileDrawer
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
     </div>
   );
 }

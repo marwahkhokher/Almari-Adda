@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 
 export default function Sidebar({
@@ -10,36 +10,35 @@ export default function Sidebar({
   mobile = false,
 }) {
   const location = useLocation();
-const navigate = useNavigate();
 
   const getActiveLabel = () => {
-  const pathname = location.pathname;
+    const pathname = location.pathname;
 
-  if (
-    pathname === '/dashboard' ||
-    pathname === '/closet'
-  ) {
+    if (
+      pathname === '/dashboard' ||
+      pathname === '/closet'
+    ) {
+      return 'Closet';
+    }
+
+    if (pathname === '/visualize') {
+      return 'Visualizer';
+    }
+
+    if (pathname === '/upload') {
+      return 'Upload Item';
+    }
+
+    if (pathname === '/build-outfit') {
+      return 'Build Outfit';
+    }
+
+    if (pathname === '/chatbot') {
+      return 'Stylist AI';
+    }
+
     return 'Closet';
-  }
-
-  if (pathname === '/visualize') {
-    return 'Visualizer';
-  }
-
-  if (pathname === '/upload') {
-    return 'Upload Item';
-  }
-
-  if (pathname === '/outfit-builder') {
-    return 'Build Outfit';
-  }
-
-  if (pathname === '/chatbot') {
-    return 'Stylist AI';
-  }
-
-  return 'Closet';
-};
+  };
 
   const [activeLabel, setActiveLabel] = useState(
     getActiveLabel
@@ -81,19 +80,20 @@ const navigate = useNavigate();
     },
   ];
 
+  // Everything routes through the parent's onNavigate — that's
+  // the single source of truth for what happens on a click (it
+  // already does navigate(navItem.route) or the action-based
+  // fallback). Sidebar itself doesn't decide navigation, it just
+  // reports the click and, on mobile, closes the drawer.
   const handleSidebarClick = (navItem, position) => {
-  setActiveLabel(position.label);
+    setActiveLabel(position.label);
 
-  if (navItem?.route) {
-    navigate(navItem.route);
-  } else {
     onNavigate?.(navItem);
-  }
 
-  if (mobile && onClose) {
-    onClose();
-  }
-};
+    if (mobile && onClose) {
+      onClose();
+    }
+  };
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#3b2113]">
@@ -113,17 +113,17 @@ const navigate = useNavigate();
         }}
       />
       {/* Decorative cover image */}
-<img
-  src="/cover.png"
-  alt=""
-  className="absolute z-10 pointer-events-none select-none"
-  style={{
-    left: '15%',
-    top: '65%',
-    width: '180px',
-    height: 'auto',
-  }}
-/>
+      <img
+        src="/cover.png"
+        alt=""
+        className="absolute z-10 pointer-events-none select-none"
+        style={{
+          left: '15%',
+          top: '65%',
+          width: '180px',
+          height: 'auto',
+        }}
+      />
 
       {/* Mobile close button */}
       {mobile && (
