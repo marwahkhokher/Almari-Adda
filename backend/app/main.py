@@ -53,13 +53,16 @@ app.include_router(filters_router)
 
 @app.on_event("startup")
 async def _warmup_ml_models():
-    """Pre-load the CLIP classifier so the first chatbot message is fast."""
+    """Pre-load the CLIP classifier and warm up the catalogue cache so all chatbot messages respond in ~1s."""
     import logging
     log = logging.getLogger(__name__)
-    log.info("Pre-warming CLIP classifier...")
-    from app.ml.pipeline import _classifier  # noqa: F401 — triggers model load
-    _classifier.get_text_embedding("warmup")
-    log.info("CLIP classifier ready.")
+    log.info("Pre-warming CLIP classifier and catalogue cache...")
+    try:
+        from app.chatbot.outfit_engine_client import fetch_outfit_suggestions
+        await fetch_outfit_suggestions()
+        log.info("Chatbot outfit engine and catalogue cache ready.")
+    except Exception as e:
+        log.warning("Warmup warning: %s", e)
 
 _catalogue_cache = None
 

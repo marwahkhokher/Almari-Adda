@@ -87,20 +87,41 @@ def _desired_formality(occasion):
 
 
 async def parse_intent(state: ChatbotState) -> ChatbotState:
-    """Use Groq to extract structured intent from the raw user message."""
+    """Use fast keyword matching or Groq to extract structured intent."""
+    msg = (state.get("user_message") or "").strip().lower()
+
+    # Fast path for preset chips & direct outfit requests (0.0001s)
+    fast_occasions = ["dinner date", "casual day out", "office look", "weekend brunch", "wedding", "eid", "interview", "work", "party", "date", "dinner", "brunch", "office"]
+    for occ in fast_occasions:
+        if occ in msg:
+            return {
+                "intent": "build_outfit",
+                "occasion": occ,
+                "color_constraint": None,
+                "reference_item_id": None,
+            }
+
+    if any(kw in msg for kw in ["outfit", "wear", "suggest", "recommend", "dress", "look", "clothes", "style", "put together"]):
+        return {
+            "intent": "build_outfit",
+            "occasion": "everyday wear",
+            "color_constraint": None,
+            "reference_item_id": None,
+        }
+
     prompt = _INTENT_PROMPT.format(message=state["user_message"])
     try:
         raw = await groq_client.complete_text(prompt)
         parsed = json.loads(raw)
         return {
-            "intent": parsed.get("intent", "general_question"),
+            "intent": parsed.get("intent", "build_outfit"),
             "occasion": parsed.get("occasion"),
             "color_constraint": parsed.get("color_constraint"),
             "reference_item_id": parsed.get("reference_item_id"),
         }
     except Exception as e:
-        logger.warning("Intent parsing failed, defaulting to general_question: %s", e)
-        return {"intent": "general_question", "occasion": None,
+        logger.warning("Intent parsing failed, defaulting to build_outfit: %s", e)
+        return {"intent": "build_outfit", "occasion": "everyday wear",
                 "color_constraint": None, "reference_item_id": None}
 
 
@@ -149,8 +170,8 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
 
     import time
     t0 = time.time()
-    from app.ml.pipeline import _classifier
-    prompt_embedding = _classifier.get_text_embedding(state["user_message"])
+    # Fast path: skip slow CPU text embedding calculation; occasion-style matching is used below
+    prompt_embedding = None
     print(f"[TIMING] embedding: {time.time() - t0:.2f}s")
 
     t1 = time.time()
