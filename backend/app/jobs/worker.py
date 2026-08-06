@@ -118,22 +118,14 @@ async def process_visualization_job(payload: dict) -> dict:
 
     result_bytes = None
 
-    if dress_function and catvton_function:
-        try:
-            if dress_bytes:
-                result_bytes = await dress_function.remote.aio(person_bytes, dress_bytes)
-            else:
-                result_bytes = await catvton_function.remote.aio(
-                    person_bytes,
-                    top_image_bytes=top_bytes,
-                    bottom_image_bytes=bottom_bytes,
-                )
-        except Exception as e:
-            logger.warning("Modal remote execution failed, falling back to local overlay: %s", e)
-            result_bytes = None
-
-    if not result_bytes:
-        result_bytes = _generate_local_overlay(person_bytes, top_bytes, bottom_bytes, dress_bytes)
+    if dress_bytes:
+        result_bytes = await dress_function.remote.aio(person_bytes, dress_bytes)
+    else:
+        result_bytes = await catvton_function.remote.aio(
+            person_bytes,
+            top_image_bytes=top_bytes,
+            bottom_image_bytes=bottom_bytes,
+        )
 
     result_filename = f"visualization_{uuid.uuid4()}.png"
     supabase.storage.from_("clothing-images").upload(

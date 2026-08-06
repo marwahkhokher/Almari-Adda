@@ -261,12 +261,16 @@ export async function resetChatSession(sessionId) {
 export async function visualizeOutfit(
   itemIds,
   model = "female",
-  personPhotoFile = null
+  personPhotoFile = null,
+  sync = true
 ) {
   const params = new URLSearchParams({
     item_ids: itemIds.join(","),
     model,
   });
+  if (sync) {
+    params.set("sync", "true");
+  }
 
   const form = new FormData();
 
