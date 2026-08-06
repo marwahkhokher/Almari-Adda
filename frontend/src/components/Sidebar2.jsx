@@ -213,6 +213,15 @@ export default function Sidebar({
   {/* Bottom highlight */}
   <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-[#F4D48B] shadow-[0_0_8px_rgba(255,220,120,.7)]" />
 </span>
+                <div className="flex items-center gap-3 px-4 h-full relative z-10 text-left">
+                  {navItem?.icon && (
+                    <navItem.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#F4D48B]' : 'text-[#D4B16A]'}`} />
+                  )}
+                  <span className={`text-xs font-serif font-bold tracking-wider truncate ${isActive ? 'text-[#FFFDF9]' : 'text-[#F3E6CF]'}`}>
+                    {position.label}
+                  </span>
+                </div>
+
                 {/* Hover sheen */}
                 <span className="pointer-events-none absolute inset-y-0 left-[-40%] w-[35%] skew-x-[-16deg] bg-white/8 opacity-0 transition-all duration-500 group-hover:left-[115%] group-hover:opacity-100" />
               </button>
