@@ -393,6 +393,9 @@ def _generate_local_overlay(person_bytes: bytes, top_bytes: bytes = None, bottom
     person_img.convert("RGB").save(out_buf, format="PNG")
     return out_buf.getvalue()
 
+import logging
+logger = logging.getLogger("main")
+
 def _ensure_valid_image_bytes(img_bytes: Optional[bytes]) -> Optional[bytes]:
     if not img_bytes:
         return None
@@ -400,10 +403,9 @@ def _ensure_valid_image_bytes(img_bytes: Optional[bytes]) -> Optional[bytes]:
         from PIL import Image
         import io
         img = Image.open(io.BytesIO(img_bytes))
-        img.verify()
-        img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+        img.load()
         buf = io.BytesIO()
-        img.save(buf, format="PNG")
+        img.convert("RGBA").save(buf, format="PNG")
         return buf.getvalue()
     except Exception as e:
         logger.warning("Failed to validate image bytes: %s", e)
@@ -455,15 +457,18 @@ async def visualize_outfit(
         if not result.data:
             raise HTTPException(status_code=404, detail=f"Item {item_id} not found")
         item = result.data[0]
-        category = item["category"]
+        category = item.get("category", "").lower()
         image_bytes = _download_image_bytes(item["image_url"])
 
-        if category == "top":
+        if category in ("top", "outerwear", "jacket", "coat", "blazer"):
             top_bytes = image_bytes
-        elif category == "bottom":
+        elif category in ("bottom", "pants", "jeans", "skirt", "trousers"):
             bottom_bytes = image_bytes
-        elif category in ("dress", "eastern wear"):
+        elif category in ("dress", "eastern wear", "full body", "one-piece"):
             dress_bytes = image_bytes
+        else:
+            # Fallback for unrecognized categories
+            top_bytes = image_bytes
 
     if person_photo:
         person_bytes = await person_photo.read()
@@ -485,7 +490,7 @@ async def visualize_outfit(
         try:
             if dress_bytes:
                 result_bytes = await dress_function.remote.aio(person_bytes, dress_bytes)
-            else:
+            elif top_bytes or bottom_bytes:
                 result_bytes = await catvton_function.remote.aio(
                     person_bytes,
                     top_image_bytes=top_bytes,
