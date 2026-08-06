@@ -171,7 +171,7 @@ export async function uploadItem(file) {
   const form = new FormData();
   form.append("file", file);
 
-  return request("/upload", {
+  return request("/upload?sync=true", {
     method: "POST",
     body: form,
   });
