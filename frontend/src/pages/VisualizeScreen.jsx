@@ -11,7 +11,7 @@ const BG_PATTERN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cg transform='rotate(-10 100 100)' fill='none' stroke='%23D4537E' stroke-width='2'%3E%3Cpath d='M28 18l-8 6-8-6-8 6v8l8-2v22h16V26l8 2v-8z'/%3E%3Cg transform='translate(90 10)'%3E%3Cpath d='M2 2h26v14l-6 2v50h-6V34l-2 2-2-2v34h-6V18l-6-2z'/%3E%3C/g%3E%3Cg transform='translate(20 100)'%3E%3Cpath d='M2 20c0-10 8-18 18-18s18 8 18 18H2z'/%3E%3Cellipse cx='20' cy='20' rx='24' ry='4'/%3E%3C/g%3E%3Cg transform='translate(110 105)'%3E%3Ccircle cx='8' cy='10' r='8'/%3E%3Ccircle cx='32' cy='10' r='8'/%3E%3Cpath d='M16 10h8M0 8l-6-4M40 8l6-4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
 
 const CLOTHING_TAXONOMY = {
-  top: ['t-shirt', 'blouse', 'sweater', 'hoodie', 'blazer', 'jacket', 'suit jacket'],
+  top: ['t-shirt', 'blouse', 'sweater', 'hoodie', 'blazer', 'jacket'],
   bottom: ['jeans', 'trousers', 'shorts', 'skirt'],
   dress: ['casual dress', 'formal dress'],
   'eastern wear': ['shalwar kameez', 'kurta'],
