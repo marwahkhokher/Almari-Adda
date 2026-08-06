@@ -18,6 +18,8 @@ from app.formality_utils import get_formality, is_formality_compatible
 
 logger = logging.getLogger(__name__)
 
+_SEEN_OUTFIT_KEYS = set()
+
 _INTENT_PROMPT = """You are a fashion stylist assistant's intent parser.
 Given the user's message, respond with ONLY a JSON object (no other text):
 {{
@@ -307,18 +309,23 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
         msg_lower = (state.get("user_message") or "").lower()
         is_regen = any(kw in msg_lower for kw in ["regenerate", "different", "another", "new combo", "try again", "switch", "something else"])
 
-        # Score every outfit by occasion-style match
-        scored = [(o, _outfit_style_score(o)) for o in filtered_outfits]
+        def _outfit_key(o):
+            t_id = o.get("top", {}).get("id") or o.get("item", {}).get("id") or ""
+            b_id = o.get("bottom", {}).get("id") or ""
+            return f"{t_id}:{b_id}"
 
-        if is_regen and len(filtered_outfits) > 1:
-            # Sort by score descending and select from diverse top candidates (excluding top-1)
-            scored.sort(key=lambda pair: pair[1], reverse=True)
-            candidates = [pair[0] for pair in scored[1:6]] or [pair[0] for pair in scored]
-            top_outfit = random.choice(candidates)
-        else:
-            max_score = max(s for _, s in scored)
-            top_scored = [o for o, s in scored if s == max_score]
-            top_outfit = random.choice(top_scored)
+        # If regenerate requested, filter out previously seen outfits if possible
+        if is_regen:
+            unseen = [o for o in filtered_outfits if _outfit_key(o) not in _SEEN_OUTFIT_KEYS]
+            if unseen:
+                filtered_outfits = unseen
+
+        # Score remaining outfits by occasion-style match
+        scored = [(o, _outfit_style_score(o)) for o in filtered_outfits]
+        max_score = max(s for _, s in scored)
+        top_scored = [o for o, s in scored if s == max_score]
+        top_outfit = random.choice(top_scored)
+        _SEEN_OUTFIT_KEYS.add(_outfit_key(top_outfit))
         chosen_items = []
         for slot in ("top", "bottom", "item"):
             piece = top_outfit.get(slot)

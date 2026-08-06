@@ -272,6 +272,34 @@ def delete_item(item_id: str):
     return {"status": "deleted", "id": item_id}
 
 
+@app.patch("/catalogue/{item_id}")
+@app.put("/catalogue/{item_id}")
+def update_catalogue_item(item_id: str, updates: dict):
+    """
+    Updates an item's category/subcategory and metadata (color/season).
+    Fixes 405 Method Not Allowed when UploadScreen saves edited details.
+    """
+    global _catalogue_cache
+    item_fields = {}
+    if "category" in updates:
+        item_fields["category"] = updates["category"]
+    if "subcategory" in updates:
+        item_fields["subcategory"] = updates["subcategory"]
+    if item_fields:
+        supabase.table("items").update(item_fields).eq("id", item_id).execute()
+
+    meta_fields = {}
+    if "color" in updates:
+        meta_fields["color"] = updates["color"]
+    if "season" in updates:
+        meta_fields["season"] = updates["season"]
+    if meta_fields:
+        supabase.table("item_metadata").update(meta_fields).eq("item_id", item_id).execute()
+
+    _catalogue_cache = None
+    return {"status": "updated", "id": item_id}
+
+
 @app.post("/outfit-suggest")
 def outfit_suggest():
     """
