@@ -67,12 +67,38 @@ export async function getCatalogue() {
 }
 
 // DELETE /catalogue/{item_id}
+// DELETE /catalogue/{item_id}
 export async function deleteItem(itemId) {
   return request(`/catalogue/${itemId}`, {
     method: "DELETE",
   });
 }
 
+// PATCH /catalogue/{item_id}
+export async function updateItemCategory(itemId, updates) {
+  return request(`/catalogue/${itemId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updates),
+  });
+}
+
+// PATCH /catalogue/{item_id} — toggle favorite status
+export async function toggleFavorite(itemId, isFavorite) {
+  return request(`/catalogue/${itemId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ is_favorite: isFavorite }),
+  });
+}
+
+// ============================================================
+// Filters (colour / season / event)
+// ============================================================
 // ============================================================
 // Filters (colour / season / event)
 // ============================================================
