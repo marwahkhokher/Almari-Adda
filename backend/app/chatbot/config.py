@@ -1,34 +1,72 @@
 """
-Configuration for the chatbot module. Loads environment variables
-and exposes typed settings used across the chatbot package.
+Configuration for the chatbot module.
+
+Loads environment variables and exposes typed settings used
+across the chatbot package.
 """
+
 import os
+
 from dotenv import load_dotenv
+
 
 load_dotenv()
 
 
+def get_int_env(name: str, default: int) -> int:
+    """Read an integer environment variable safely."""
+    raw_value = os.getenv(name)
+
+    if raw_value is None or not raw_value.strip():
+        return default
+
+    try:
+        return int(raw_value)
+    except ValueError:
+        raise RuntimeError(
+            f"{name} must be a valid integer, received: {raw_value!r}"
+        )
+
+
 class ChatbotConfig:
-    """Centralized config for the chatbot module."""
+    """Centralized configuration for the chatbot module."""
 
-    GROQ_API_KEY= os.getenv("GROQ_API_KEY")
-    GROQ_TEXT_MODEL= os.getenv("GROQ_TEXT_MODEL")
-    GROQ_VISION_MODEL = os.getenv("GROQ_VISION_MODEL")
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+    GROQ_TEXT_MODEL = os.getenv(
+        "GROQ_TEXT_MODEL",
+        "llama-3.3-70b-versatile",
+    )
+    GROQ_VISION_MODEL = os.getenv(
+        "GROQ_VISION_MODEL",
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+    )
 
-    # Base URL of our own FastAPI app, used to call /catalogue internally.
-    BACKEND_BASE_URL= os.getenv("BACKEND_BASE_URL")
+    # Base URL of this FastAPI app, used for internal catalogue calls.
+    BACKEND_BASE_URL = os.getenv(
+        "BACKEND_BASE_URL",
+        "http://127.0.0.1:8000",
+    )
 
-    # How long an enriched item's inferred attributes stay valid in memory (seconds).
-    ATTRIBUTE_CACHE_TTL= int(os.getenv("ATTRIBUTE_CACHE_TTL"))
+    # How long inferred attributes remain cached, in seconds.
+    ATTRIBUTE_CACHE_TTL = get_int_env(
+        "ATTRIBUTE_CACHE_TTL",
+        3600,
+    )
 
-    # Max conversation turns kept per session before trimming oldest.
-    MAX_MEMORY_TURNS= int(os.getenv("MAX_MEMORY_TURNS"))
+    # Maximum conversation turns kept before trimming old turns.
+    MAX_MEMORY_TURNS = get_int_env(
+        "MAX_MEMORY_TURNS",
+        20,
+    )
 
     @classmethod
     def validate(cls) -> None:
-        """Raise if required settings are missing. Call this at startup."""
+        """Raise an error when required chatbot settings are missing."""
         if not cls.GROQ_API_KEY:
-            raise RuntimeError("GROQ_API_KEY must be set in .env for the chatbot module")
+            raise RuntimeError(
+                "GROQ_API_KEY must be set in the backend .env file "
+                "for the chatbot module."
+            )
 
 
 config = ChatbotConfig()
