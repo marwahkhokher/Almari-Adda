@@ -278,6 +278,7 @@ export default function UploadScreen() {
 
   const handleSubmit = async () => {
     if (!photoPreview) return;
+    setUploadError(null);
     setIsSaving(true);
     try {
       if (uploadedItemId) {
