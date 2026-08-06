@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Check, Sparkles, Sparkle, ArrowLeft, Upload, Image as ImageIcon, X, WandSparkles,
   Heart, Search, Bell, Plus, RotateCcw, Maximize2, SlidersHorizontal,
   ArrowUpDown, LayoutGrid, List, ShoppingBag,
+  CloudUpload, Home, Menu, User, Wand2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { getCatalogue, visualizeOutfit, pollJob, getJobStatus } from '../lib/api.js';
-import Sidebar from '../components/Sidebar.jsx';
+import { getCatalogue, visualizeOutfit } from '../lib/api.js';
+import Sidebar from '../components/Sidebar2.jsx';
+import ProfileDrawer from './ProfileScreen.jsx';
 
 const CLOTHING_TAXONOMY = {
   top: ['t-shirt', 'blouse', 'sweater', 'hoodie', 'shirt'],
@@ -21,9 +24,7 @@ const CLOTHING_TAXONOMY = {
 
 const SUBCATEGORY_TO_CATEGORY = {};
 Object.entries(CLOTHING_TAXONOMY).forEach(([category, subs]) => {
-  subs.forEach((sub) => {
-    SUBCATEGORY_TO_CATEGORY[sub] = category;
-  });
+  subs.forEach(sub => { SUBCATEGORY_TO_CATEGORY[sub] = category; });
 });
 
 const parentCategories = [
@@ -41,6 +42,44 @@ const SORT_OPTIONS = [
   { key: 'newest', label: 'Newest first' },
   { key: 'name-asc', label: 'Name (A-Z)' },
   { key: 'name-desc', label: 'Name (Z-A)' },
+];
+
+/* Same little hanger mark used in the other screens' sidebar
+   nav — duplicated here since it's tiny; if it ends up in a
+   fifth place, move it into its own shared file instead. */
+function Hanger() {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12 5.5C12 3.8 13.3 2.5 15 2.5C16.7 2.5 18 3.8 18 5.5C18 7.2 16.5 8 15.5 8.8L12 11"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M12 11L3 17.5C2.4 18 2.8 19 3.6 19H20.4C21.2 19 21.6 18 21 17.5L12 11Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/* Matches the other screens' NAV_ITEMS. "Visualizer" points at
+   /visualize — this screen. */
+const NAV_ITEMS = [
+  { label: 'Closet', icon: Home, action: 'closet' },
+  { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
+  { label: 'Upload Item', icon: CloudUpload, route: '/upload' },
+  { label: 'Build Outfit', icon: Hanger, route: '/build-outfit' },
+  { label: 'Stylist AI', icon: Wand2, route: '/chatbot' },
 ];
 
 export default function VisualizeScreen() {
@@ -63,9 +102,34 @@ export default function VisualizeScreen() {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
   const navigate = useNavigate();
-  const { gender: userGenderContext, user } = useAuth();
+  const { gender: userGenderContext, user, signOut } = useAuth();
   const gender = (userGenderContext || user?.user_metadata?.gender || 'female').toLowerCase();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  };
+
+  const handleNavItem = (navItem) => {
+    setIsMobileSidebarOpen(false);
+
+    if (navItem.route) {
+      navigate(navItem.route);
+      return;
+    }
+
+    if (navItem.action === 'closet' || navItem.action === 'favorites') {
+      navigate('/dashboard');
+    }
+  };
 
   useEffect(() => {
     const fetchCatalogue = async () => {
@@ -81,24 +145,6 @@ export default function VisualizeScreen() {
       }
     };
     fetchCatalogue();
-
-    // Recover active try-on job state if page was refreshed mid-process
-    const storedJobId = localStorage.getItem("tryon_job_id");
-    if (storedJobId) {
-      setIsGenerating(true);
-      pollJob(storedJobId)
-        .then((result) => {
-          if (result?.visualization_url) {
-            setResultImageUrl(result.visualization_url);
-          }
-          localStorage.removeItem("tryon_job_id");
-        })
-        .catch((err) => {
-          console.error("Failed to recover try-on job", err);
-          localStorage.removeItem("tryon_job_id");
-        })
-        .finally(() => setIsGenerating(false));
-    }
   }, []);
 
   const handlePhotoUpload = e => {
@@ -174,20 +220,10 @@ export default function VisualizeScreen() {
     try {
       const itemIds = selectedItems.map(i => i.id);
       const response = await visualizeOutfit(itemIds, gender, personPhotoFile);
-      if (response?.job_id) {
-        localStorage.setItem("tryon_job_id", response.job_id);
-        const result = await pollJob(response.job_id);
-        if (result?.visualization_url) {
-          setResultImageUrl(result.visualization_url);
-        }
-        localStorage.removeItem("tryon_job_id");
-      } else if (response?.visualization_url) {
-        setResultImageUrl(response.visualization_url);
-      }
+      setResultImageUrl(response.visualization_url);
     } catch (error) {
       console.error('Visualization failed', error);
       setGenError(error.message || 'Failed to generate visualization');
-      localStorage.removeItem("tryon_job_id");
     } finally {
       setIsGenerating(false);
     }
@@ -218,40 +254,90 @@ export default function VisualizeScreen() {
       : [];
 
   return (
-    <div className="min-h-screen bg-[#FBF3E7] flex">
-      <Sidebar />
+    <div className="min-h-screen bg-[#FBF3E7]">
+      {/* =====================================================
+          MOBILE TOP BAR
+      ====================================================== */}
 
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* HEADER */}
-        <header className="flex items-center gap-3 md:gap-4 px-4 md:px-10 h-20 border-b border-[#e6d5b8] bg-[#FBF3E7]/95 backdrop-blur-sm shrink-0">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-full text-[#6b5645] hover:text-[#7a2331] hover:bg-[#f3e6cf] transition-colors shrink-0"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+      <div className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#e6d5b8] bg-[#FBF3E7]/95 px-4 backdrop-blur lg:hidden">
+        <button
+          type="button"
+          onClick={() => setIsMobileSidebarOpen(true)}
+          className="rounded-full p-2 text-[#3d2417]"
+          aria-label="Open menu"
+        >
+          <Menu size={22} />
+        </button>
 
-          <div className="flex-1 flex justify-center px-2">
-            <div className="relative w-full max-w-md">
-              <Search className="w-4 h-4 text-[#a89478] absolute left-4 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search in your almari..."
-                className="w-full bg-white border border-[#e6d5b8] rounded-full pl-10 pr-4 py-2.5 text-sm text-[#3d2417] placeholder:text-[#a89478] focus:outline-none focus:ring-2 focus:ring-[#7a2331]/20 focus:border-[#7a2331] transition"
+        <div className="font-serif text-lg font-semibold tracking-[0.14em] text-[#7a2331]">
+          ALMARI ADDA
+        </div>
+
+        <button
+          type="button"
+          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[#e6d5b8] bg-white"
+        >
+          <User size={17} />
+        </button>
+      </div>
+
+      {/* =====================================================
+          MOBILE SIDEBAR
+      ====================================================== */}
+
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <>
+            <motion.button
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="fixed inset-0 z-[70] bg-black/40 lg:hidden"
+              aria-label="Close menu"
+            />
+
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              className="fixed bottom-0 left-0 top-0 z-[80] w-[260px] max-w-[88vw] lg:hidden"
+            >
+              <Sidebar
+                navItems={NAV_ITEMS}
+                onNavigate={handleNavItem}
+                onSignOut={handleSignOut}
+                onClose={() => setIsMobileSidebarOpen(false)}
+                mobile
               />
-            </div>
-          </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-          <button className="relative p-2 rounded-full text-[#6b5645] hover:text-[#7a2331] hover:bg-[#f3e6cf] transition-colors shrink-0">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#7a2331] rounded-full ring-2 ring-[#FBF3E7]" />
-          </button>
-        </header>
+      {/* =====================================================
+          DESKTOP SIDEBAR — same component, same positions as
+          your other screens
+      ====================================================== */}
+
+      <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-[260px] lg:block">
+        <Sidebar
+          navItems={NAV_ITEMS}
+          onNavigate={handleNavItem}
+          onSignOut={handleSignOut}
+        />
+      </aside>
+
+      {/* =====================================================
+          MAIN CONTENT
+      ====================================================== */}
+
+      <div className="flex min-h-screen flex-col pt-16 lg:ml-[260px] lg:pt-0">
 
         {/* MAIN */}
-        <main className="flex-1 px-4 md:px-10 py-8 max-w-[1440px] w-full mx-auto">
+        <main className="flex-1 px-4 md:px-10 pt-8 pb-5 max-w-[1440px] w-full mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 mb-8">
             <div className="hidden md:block" />
 
@@ -267,22 +353,32 @@ export default function VisualizeScreen() {
               <p className="text-[#8a7360] text-sm">See how your selected pieces come together.</p>
             </div>
 
-            <div className="flex items-center justify-center md:justify-end gap-3">
-              <button
-                onClick={() => navigate('/build-outfit')}
-                className="inline-flex items-center gap-2 text-[#7a2331] border border-[#7a2331]/30 hover:bg-[#7a2331]/5 text-sm font-semibold px-4 py-2 rounded-xl transition"
-              >
-                <WandSparkles className="w-4 h-4" />
-                Build an Outfit
-              </button>
-              <button
-                onClick={() => navigate('/upload')}
-                className="inline-flex items-center gap-2 text-[#3d2417] border border-[#e6d5b8] hover:bg-[#f3e6cf] text-sm font-semibold px-4 py-2 rounded-xl transition"
-              >
-                <Plus className="w-4 h-4" />
-                Add New Item
-              </button>
-            </div>
+            <div className="flex items-center justify-center md:justify-end gap-2">
+  <button
+    onClick={() => navigate('/build-outfit')}
+    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#7a2331]/30 px-3 py-2 text-xs font-semibold text-[#7a2331] transition hover:bg-[#7a2331]/5"
+  >
+    <WandSparkles className="h-4 w-4" />
+    Build an Outfit
+  </button>
+
+  <button
+    onClick={() => navigate('/upload')}
+    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#e6d5b8] px-3 py-2 text-xs font-semibold text-[#3d2417] transition hover:bg-[#f3e6cf]"
+  >
+    <Plus className="h-4 w-4" />
+    Add New Item
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setIsProfileOpen(true)}
+    aria-label="Profile"
+    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#e6d5b8] text-[#3d2417] transition hover:bg-[#f3e6cf]"
+  >
+    <User className="h-4 w-4" />
+  </button>
+</div>
           </div>
 
           <div className="bg-[#FCF6EC] rounded-3xl border border-[#e6d5b8] shadow-[0_8px_30px_rgba(61,36,23,0.08)] p-4 md:p-6">

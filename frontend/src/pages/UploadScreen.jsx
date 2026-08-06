@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Search, Bell, HelpCircle, UploadCloud, Smartphone,
   Camera, Lightbulb, Tag, Lock, Sparkles, AlertCircle, CheckCircle,
+  CloudUpload, Home, Menu, User, Wand2,
 } from 'lucide-react';
 import {
   getCatalogue,
@@ -11,7 +13,9 @@ import {
   updateItemMetadata,
   updateItemCategory,
 } from '../lib/api.js';
-import Sidebar from '../components/Sidebar.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
+import Sidebar from '../components/Sidebar2.jsx';
+import ProfileDrawer from './ProfileScreen.jsx';
 
 const CATEGORY_OPTIONS = {
   top: ['t-shirt', 'blouse', 'sweater', 'hoodie', 'shirt'],
@@ -35,6 +39,28 @@ const COLOR_OPTIONS = [
 ];
 
 const SEASON_OPTIONS = ['Summer', 'Winter', 'Spring', 'Fall', 'All season'];
+
+/* Same little hanger mark used in the other screens' sidebar
+   nav — duplicated here since it's tiny; if it ends up in a
+   sixth place, move it into its own shared file instead. */
+function Hanger() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 5.5C12 3.8 13.3 2.5 15 2.5C16.7 2.5 18 3.8 18 5.5C18 7.2 16.5 8 15.5 8.8L12 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M12 11L3 17.5C2.4 18 2.8 19 3.6 19H20.4C21.2 19 21.6 18 21 17.5L12 11Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* Matches the other screens' NAV_ITEMS (5 entries — Sidebar2's
+   buttonPositions array only has 5 slots). */
+const NAV_ITEMS = [
+  { label: 'Closet', icon: Home, action: 'closet' },
+  { label: 'Visualizer', icon: Sparkles, route: '/visualize' },
+  { label: 'Upload Item', icon: CloudUpload, route: '/upload' },
+  { label: 'Build Outfit', icon: Hanger, route: '/build-outfit' },
+  { label: 'Stylist AI', icon: Wand2, route: '/chatbot' },
+];
 
 // Best-effort swatch color for a detected color name that isn't in COLOR_OPTIONS —
 // lets the browser resolve any valid CSS color keyword (e.g. "gray", "maroon").
@@ -87,6 +113,36 @@ function SelectField({ label, value, onChange, options, placeholder }) {
 
 export default function UploadScreen() {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+const userAvatar = user?.user_metadata?.avatar_url || null;
+const userName =
+  user?.user_metadata?.full_name ||
+  user?.email?.split('@')[0] ||
+  'User';
+
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  };
+
+  const handleNavItem = (navItem) => {
+    setIsMobileSidebarOpen(false);
+    if (navItem.route) {
+      navigate(navItem.route);
+      return;
+    }
+    if (navItem.action === 'closet' || navItem.action === 'favorites') {
+      navigate('/dashboard');
+    }
+  };
 
   const [recentItems, setRecentItems] = useState([]);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -208,46 +264,95 @@ export default function UploadScreen() {
   const hasPhoto = Boolean(photoPreview);
 
   return (
-    <div className="min-h-screen bg-[#FBF3E7] flex">
-      <Sidebar />
+    <div className="min-h-screen bg-[#FBF3E7]">
+      {/* MOBILE TOP BAR */}
+      <div className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#e6d5b8] bg-[#FBF3E7]/95 px-4 backdrop-blur lg:hidden">
+        <button type="button" onClick={() => setIsMobileSidebarOpen(true)} className="rounded-full p-2 text-[#3d2417]" aria-label="Open menu">
+          <Menu size={22} />
+        </button>
+        <div className="font-serif text-lg font-semibold tracking-[0.14em] text-[#7a2331]">ALMARI ADDA</div>
+        <button
+  type="button"
+  onClick={() => setIsProfileOpen(true)}
+  aria-label="Profile"
+  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e6d5b8] bg-white text-[#3d2417] transition hover:bg-[#f3e6cf]"
+>
+  <User size={17} />
+</button>
+      </div>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="flex items-center gap-3 md:gap-4 px-4 md:px-10 h-20 border-b border-[#e6d5b8] bg-[#FBF3E7]/95 backdrop-blur-sm shrink-0">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-full text-[#6b5645] hover:text-[#7a2331] hover:bg-[#f3e6cf] transition-colors shrink-0"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+      {/* MOBILE SIDEBAR */}
+      <AnimatePresence>
+        {isMobileSidebarOpen && (
+          <>
+            <motion.button
+              type="button"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="fixed inset-0 z-[70] bg-black/40 lg:hidden"
+              aria-label="Close menu"
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              className="fixed bottom-0 left-0 top-0 z-[80] w-[260px] max-w-[88vw] lg:hidden"
+            >
+              <Sidebar navItems={NAV_ITEMS} onNavigate={handleNavItem} onSignOut={handleSignOut} onClose={() => setIsMobileSidebarOpen(false)} mobile />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
-          <div className="flex-1 flex justify-center px-2">
-            <div className="relative w-full max-w-md">
-              <Search className="w-4 h-4 text-[#a89478] absolute left-4 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search in your almari..."
-                className="w-full bg-white border border-[#e6d5b8] rounded-full pl-10 pr-4 py-2.5 text-sm text-[#3d2417] placeholder:text-[#a89478] focus:outline-none focus:ring-2 focus:ring-[#7a2331]/20 focus:border-[#7a2331] transition"
-              />
-            </div>
-          </div>
+      {/* DESKTOP SIDEBAR */}
+      <aside className="fixed bottom-0 left-0 top-0 z-40 hidden w-[260px] lg:block">
+        <Sidebar navItems={NAV_ITEMS} onNavigate={handleNavItem} onSignOut={handleSignOut} />
+      </aside>
 
-          <button className="relative p-2 rounded-full text-[#6b5645] hover:text-[#7a2331] hover:bg-[#f3e6cf] transition-colors shrink-0">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#7a2331] rounded-full ring-2 ring-[#FBF3E7]" />
-          </button>
-        </header>
+      <div className="flex min-h-screen flex-col pt-16 lg:ml-[260px] lg:pt-0">
 
-        <main className="flex-1 px-4 md:px-10 py-5 max-w-[1440px] w-full mx-auto">
-          <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
-            <div>
-              <p className="text-xs text-[#a89478] mb-0.5">My Almari <span className="mx-1">/</span> Add New Item</p>
-              <h1 className="text-xl md:text-2xl font-display font-bold text-[#3d2417]">Add New Item</h1>
-            </div>
-            <button className="inline-flex items-center gap-2 text-[#6b5645] border border-[#e6d5b8] hover:bg-[#f3e6cf] text-xs font-semibold px-4 py-2 rounded-full transition">
-              <HelpCircle className="w-3.5 h-3.5" />
-              Learn how to add items
-            </button>
-          </div>
+        <main className="flex-1 px-4 md:px-10 pt-8 pb-5 max-w-[1440px] w-full mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 mb-8">
+
+  {/* Left spacer */}
+  <div className="hidden md:block" />
+
+  {/* Center title */}
+  <div className="text-center">
+
+    <h1 className="text-3xl md:text-4xl font-display font-bold text-[#3d2417]">
+      AI <span className="text-[#7a2331]">Stylist</span>
+    </h1>
+
+    <div className="flex items-center justify-center gap-2 mt-2.5 mb-2">
+      <span className="w-8 h-px bg-[#c9a769]" />
+      <span className="w-1.5 h-1.5 rotate-45 bg-[#c9a769]" />
+      <span className="w-8 h-px bg-[#c9a769]" />
+    </div>
+
+    <p className="text-[#8a7360] text-sm">
+      Ask for outfit ideas, styling tips and wardrobe help.
+    </p>
+
+  </div>
+
+  {/* Right buttons */}
+  <div className="flex justify-end items-center gap-3">
+
+   <button
+  onClick={() => setIsProfileOpen(true)}
+  aria-label="Profile"
+  className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-[#e6d5b8] hover:bg-[#f3e6cf] text-[#3d2417] transition"
+>
+  <User className="w-4 h-4" />
+</button>
+
+  </div>
+
+</div>
 
           {uploadError && (
             <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700">
@@ -471,6 +576,10 @@ export default function UploadScreen() {
         <Sparkles className="w-5 h-5 mb-0.5" />
         <span className="text-[9px] font-semibold">AI Stylist</span>
       </button>
+      <ProfileDrawer
+  isOpen={isProfileOpen}
+  onClose={() => setIsProfileOpen(false)}
+/>
     </div>
   );
 }
