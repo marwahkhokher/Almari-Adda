@@ -220,16 +220,27 @@ def detect_best_season(category, subcategory):
 
     # Everything else
     return ["all seasons"]
-
 @app.get("/catalogue")
 def get_catalogue():
     """
-    Returns every item saved in the catalogue so far (cached for instant load).
+    Returns every item saved in the catalogue so far (cached for instant load),
+    enriched with color/season from item_metadata so downstream consumers
+    (like the chatbot) don't need to re-detect these via slow AI calls.
     """
     global _catalogue_cache
     if _catalogue_cache is None:
-        result = supabase.table("items").select("*").execute()
-        _catalogue_cache = {"items": result.data}
+        items_result = supabase.table("items").select("*").execute()
+        metadata_result = supabase.table("item_metadata").select("*").execute()
+        metadata_by_id = {m["item_id"]: m for m in metadata_result.data}
+
+        enriched_items = []
+        for item in items_result.data:
+            meta = metadata_by_id.get(item["id"], {})
+            item["color"] = meta.get("color")
+            item["season"] = meta.get("season")
+            enriched_items.append(item)
+
+        _catalogue_cache = {"items": enriched_items}
     return _catalogue_cache
 
 @app.delete("/catalogue/{item_id}")
