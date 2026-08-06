@@ -29,13 +29,20 @@ async function request(path, options = {}) {
   }
 
   if (!res.ok) {
-    const detail =
-      (data && data.detail) ||
-      (typeof data === "string" && data) ||
-      res.statusText ||
-      "Request failed";
+    let detailMessage = "Request failed";
+    const rawDetail = data && data.detail !== undefined ? data.detail : data;
 
-    throw new ApiError(detail, res.status);
+    if (typeof rawDetail === "string") {
+      detailMessage = rawDetail;
+    } else if (Array.isArray(rawDetail)) {
+      detailMessage = rawDetail.map(err => (typeof err === "string" ? err : err.msg || JSON.stringify(err))).join(", ");
+    } else if (rawDetail && typeof rawDetail === "object") {
+      detailMessage = rawDetail.message || rawDetail.detail || JSON.stringify(rawDetail);
+    } else if (res.statusText) {
+      detailMessage = res.statusText;
+    }
+
+    throw new ApiError(detailMessage, res.status);
   }
 
   return data;

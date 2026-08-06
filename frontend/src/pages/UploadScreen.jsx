@@ -111,17 +111,31 @@ function SelectField({ label, value, onChange, options, placeholder }) {
   );
 }
 
+function formatErrorMessage(err) {
+  if (!err) return '';
+  if (typeof err === 'string') return err;
+  if (err && err.message && typeof err.message === 'string') return err.message;
+  if (typeof err === 'object') {
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return 'Something went wrong. Please try again.';
+    }
+  }
+  return String(err) || 'Something went wrong. Please try again.';
+}
+
 export default function UploadScreen() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-const userAvatar = user?.user_metadata?.avatar_url || null;
-const userName =
-  user?.user_metadata?.full_name ||
-  user?.email?.split('@')[0] ||
-  'User';
+  const userAvatar = user?.user_metadata?.avatar_url || null;
+  const userName =
+    user?.user_metadata?.full_name ||
+    user?.email?.split('@')[0] ||
+    'User';
 
 
   const handleSignOut = async () => {
@@ -218,7 +232,7 @@ const userName =
       setSeason(matchOption(detectedSeason, SEASON_OPTIONS));
     } catch (error) {
       console.error('Failed to analyze item', error);
-      setUploadError(error.message || 'Failed to upload item. Please try again.');
+      setUploadError(formatErrorMessage(error));
     } finally {
       setIsAnalyzing(false);
     }
@@ -255,7 +269,7 @@ const userName =
       setIsSuccess(true);
     } catch (error) {
       console.error('Failed to save item', error);
-      setUploadError(error.message || 'Failed to save item. Please try again.');
+      setUploadError(formatErrorMessage(error));
     } finally {
       setIsSaving(false);
     }

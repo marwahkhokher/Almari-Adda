@@ -24,7 +24,7 @@ router = APIRouter(prefix="/item-metadata", tags=["item-metadata"])
 class ItemMetadataUpdate(BaseModel):
     material: Optional[str] = None
     color: Optional[str] = None
-    season: Optional[List[str]] = None
+    season: Optional[Union[List[str], str]] = None
     purchase_price: Optional[float] = None
     purchase_date: Optional[str] = None
     purchase_location: Optional[str] = None
@@ -61,6 +61,9 @@ def update_item_metadata(item_id: str, payload: ItemMetadataUpdate):
     """Create or update metadata for an item (upsert)."""
     data = payload.dict(exclude_unset=True)
     data["item_id"] = item_id
+
+    if isinstance(data.get("season"), str):
+        data["season"] = [data["season"]] if data["season"].strip() else []
 
     try:
         result = supabase.table("item_metadata").upsert(data, on_conflict="item_id").execute()
