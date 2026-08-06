@@ -338,14 +338,24 @@ def _generate_local_overlay(person_bytes: bytes, top_bytes: bytes = None, bottom
     import io
     from PIL import Image, ImageFilter
 
-    person_img = Image.open(io.BytesIO(person_bytes)).convert("RGBA")
+    try:
+        person_img = Image.open(io.BytesIO(person_bytes)).convert("RGBA")
+    except Exception:
+        photo_file = "app/ml/visualization/assets/person_base_female.jpg"
+        person_img = Image.open(photo_file).convert("RGBA")
+
     w, h = person_img.size
 
     def _prep_garment(img_bytes, max_w_frac, max_h_frac):
         """Load a garment image, strip a near-white background if it doesn't
         already have real transparency, and resize it to FIT within a max
         box while preserving its original aspect ratio (no stretching)."""
-        img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+        if not img_bytes:
+            return None
+        try:
+            img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+        except Exception:
+            return None
 
         # If there's no real transparency (fully opaque alpha channel), this
         # is probably a plain product photo on a white background rather
@@ -372,6 +382,8 @@ def _generate_local_overlay(person_bytes: bytes, top_bytes: bytes = None, bottom
         return shadow.filter(ImageFilter.GaussianBlur(6))
 
     def _paste_centered(base, garment, center_x_frac, top_y_frac):
+        if not garment:
+            return
         x = int(w * center_x_frac) - garment.width // 2
         y = int(h * top_y_frac)
         shadow = _soft_shadow(garment)
