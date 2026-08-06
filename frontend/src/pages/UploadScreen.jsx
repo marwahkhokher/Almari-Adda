@@ -1,495 +1,467 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Upload, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
-
 import {
-  uploadClothingItem,
-  getItemMetadata,
-} from '../lib/api.js';
+  ArrowLeft, Search, Bell, HelpCircle, UploadCloud, Smartphone,
+  Camera, Lightbulb, Tag, Lock, Sparkles, AlertCircle, CheckCircle,
+} from 'lucide-react';
+import { getCatalogue, uploadClothingItem, getItemMetadata } from '../lib/api.js';
+import Sidebar from '../components/Sidebar.jsx';
 
-const BG_PATTERN =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cg transform='rotate(-10 100 100)' fill='none' stroke='%23D4537E' stroke-width='2'%3E%3Cpath d='M28 18l-8 6-8-6-8 6v8l8-2v22h16V26l8 2v-8z'/%3E%3Cg transform='translate(90 10)'%3E%3Cpath d='M2 2h26v14l-6 2v50h-6V34l-2 2-2-2v34h-6V18l-6-2z'/%3E%3C/g%3E%3Cg transform='translate(20 100)'%3E%3Cpath d='M2 20c0-10 8-18 18-18s18 8 18 18H2z'/%3E%3Cellipse cx='20' cy='20' rx='24' ry='4'/%3E%3C/g%3E%3Cg transform='translate(110 105)'%3E%3Ccircle cx='8' cy='10' r='8'/%3E%3Ccircle cx='32' cy='10' r='8'/%3E%3Cpath d='M16 10h8M0 8l-6-4M40 8l6-4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
+const CATEGORY_OPTIONS = {
+  top: ['t-shirt', 'blouse', 'sweater', 'hoodie', 'shirt'],
+  bottom: ['jeans', 'trousers', 'shorts', 'skirt'],
+  dress: ['casual dress', 'formal dress'],
+  'eastern wear': ['shalwar kameez', 'kurta'],
+  outerwear: ['jacket', 'blazer', 'suit jacket', 'coat', 'cardigan'],
+  shoes: ['heels', 'flats', 'sneakers', 'sandals', 'boots'],
+  accessories: ['bag', 'handbag', 'jewelry', 'scarf', 'belt'],
+};
+
+const COLOR_OPTIONS = [
+  { label: 'Maroon', hex: '#7a2331' },
+  { label: 'Beige', hex: '#d9c6a5' },
+  { label: 'Black', hex: '#1c1c1c' },
+  { label: 'Navy', hex: '#1f2a44' },
+  { label: 'Blush', hex: '#e3b7ae' },
+  { label: 'Olive', hex: '#6b6b3a' },
+  { label: 'White', hex: '#f5f0e6' },
+  { label: 'Denim', hex: '#4a6a8a' },
+];
+
+const SEASON_OPTIONS = ['Summer', 'Winter', 'Spring', 'Fall', 'All season'];
+
+// Best-effort swatch color for a detected color name that isn't in COLOR_OPTIONS —
+// lets the browser resolve any valid CSS color keyword (e.g. "gray", "maroon").
+// Normalizes a detected value to the exact casing of a matching option
+// (so <select> can actually select it), falling back to the raw value.
+function matchOption(raw, options) {
+  if (!raw) return '';
+  const found = options.find(opt => opt.toLowerCase() === String(raw).toLowerCase());
+  return found || raw;
+}
+
+function resolveColorSwatch(label) {
+  if (!label) return '#e6d5b8';
+  const known = COLOR_OPTIONS.find(c => c.label.toLowerCase() === label.toLowerCase());
+  if (known) return known.hex;
+  if (typeof document !== 'undefined') {
+    const probe = document.createElement('div');
+    probe.style.color = label.replace(/\s+/g, '');
+    document.body.appendChild(probe);
+    const computed = getComputedStyle(probe).color;
+    document.body.removeChild(probe);
+    if (computed && computed !== 'rgba(0, 0, 0, 0)') return computed;
+  }
+  return '#c9b8a3';
+}
+
+// Selects normally only show a value if it exactly matches one of `options`.
+// Detected values from the API can have different casing/wording, so we
+// inject the raw detected value as an extra option when it doesn't match —
+// this guarantees whatever was auto-detected actually shows up selected.
+function SelectField({ label, value, onChange, options, placeholder }) {
+  const needsInjectedOption = value && !options.some(opt => opt.toLowerCase() === value.toLowerCase());
+  return (
+    <label className="block">
+      <span className="block text-xs font-semibold text-[#6b5645] mb-1.5">{label}</span>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full bg-white border border-[#e6d5b8] rounded-xl px-3 py-2.5 text-sm text-[#3d2417] focus:outline-none focus:ring-2 focus:ring-[#7a2331]/20 focus:border-[#7a2331] transition capitalize"
+      >
+        <option value="">{placeholder}</option>
+        {needsInjectedOption && <option value={value}>{value}</option>}
+        {options.map(opt => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 export default function UploadScreen() {
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
 
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [metadata, setMetadata] = useState(null);
+  const [recentItems, setRecentItems] = useState([]);
+  const [photoPreview, setPhotoPreview] = useState(null);
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
+  const [category, setCategory] = useState('');
+  const [subcategory, setSubcategory] = useState('');
+  const [color, setColor] = useState('');
+  const [season, setSeason] = useState('');
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [uploadedItemId, setUploadedItemId] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+
+  const loadRecent = async () => {
+    try {
+      const response = await getCatalogue();
+      const items = response?.items || response?.data || response || [];
+      const sorted = [...(Array.isArray(items) ? items : [])].sort((a, b) => {
+        const aTime = new Date(a.created_at || a.createdAt || a.date_added || 0).getTime();
+        const bTime = new Date(b.created_at || b.createdAt || b.date_added || 0).getTime();
+        if (aTime !== bTime) return bTime - aTime;
+        // Fall back to id ordering if there's no usable timestamp on the item.
+        return String(b.id).localeCompare(String(a.id));
+      });
+      setRecentItems(sorted.slice(0, 4));
+    } catch (error) {
+      console.error('Failed to load recent uploads', error);
     }
   };
 
-  const handleFile = (selectedFile) => {
-    if (!selectedFile.type.startsWith('image/')) {
-      setError('Please select an image file (JPG, PNG).');
+  useEffect(() => {
+    loadRecent();
+  }, []);
+
+  const subcategoryOptions = category ? CATEGORY_OPTIONS[category.toLowerCase()] || [] : [];
+
+  const handlePhotoSelect = async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select an image file (JPG, PNG).');
       return;
     }
 
-    setFile(selectedFile);
-    setPreview(URL.createObjectURL(selectedFile));
-    setError(null);
-    setResult(null);
-    setMetadata(null);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file) return;
-
-    setUploading(true);
-    setError(null);
-
+    setPhotoPreview(URL.createObjectURL(file));
+    setUploadError(null);
+    setIsAnalyzing(true);
     try {
       const response = await uploadClothingItem(file);
+      const item = response?.item || {};
+      setUploadedItemId(item.id || null);
+      const detectedCategory = matchOption(item.category, Object.keys(CATEGORY_OPTIONS));
+      setCategory(detectedCategory);
+      const subOptions = CATEGORY_OPTIONS[detectedCategory.toLowerCase()] || [];
+      setSubcategory(matchOption(item.subcategory, subOptions));
 
-      setResult(response);
+      let detectedColor = response?.color || item.color || '';
+      let detectedSeason = Array.isArray(response?.season) ? response.season[0] : response?.season || item.season || '';
 
-      if (response.item?.id) {
-        const meta = await getItemMetadata(response.item.id);
-        setMetadata(meta);
+      if (item.id) {
+        try {
+          const meta = await getItemMetadata(item.id);
+          if (!detectedColor) detectedColor = meta?.color || '';
+          if (!detectedSeason) detectedSeason = Array.isArray(meta?.season) ? meta.season[0] : meta?.season || '';
+        } catch (metaError) {
+          console.error('Failed to load item metadata', metaError);
+        }
       }
-    } catch (err) {
-      setError(err.message || 'Failed to upload item. Please try again.');
+
+      setColor(matchOption(detectedColor, COLOR_OPTIONS.map(c => c.label)));
+      setSeason(matchOption(detectedSeason, SEASON_OPTIONS));
+    } catch (error) {
+      console.error('Failed to analyze item', error);
+      setUploadError(error.message || 'Failed to upload item. Please try again.');
     } finally {
-      setUploading(false);
+      setIsAnalyzing(false);
     }
   };
 
-  const resetState = () => {
-    setFile(null);
-    setPreview(null);
-    setResult(null);
-    setMetadata(null);
-    setError(null);
+  const handleCancel = () => {
+    // Note: the item is already saved server-side as soon as it's uploaded/analyzed.
+    // This just clears the form for a new upload — wire in a delete call here if you
+    // want "Cancel" to also remove the just-created item.
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(null);
+    setUploadedItemId(null);
+    setCategory('');
+    setSubcategory('');
+    setColor('');
+    setSeason('');
+    setIsAnalyzing(false);
+    setIsSuccess(false);
+    setUploadError(null);
+  };
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  // Same reset as Cancel, used from the success screen's "Upload another item" button.
+  const handleUploadAnother = () => handleCancel();
+
+  const handleSubmit = async () => {
+    if (!photoPreview) return;
+    setIsSaving(true);
+    try {
+      // The item was already created by uploadClothingItem() when the photo was
+      // selected. TODO: if you add an "update item" endpoint, push the edited
+      // fields (category, subcategory, color, season) for uploadedItemId here
+      // before showing the success screen.
+      await loadRecent();
+      setIsSuccess(true);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const formatDate = (date) => {
-    if (!date) {
-      return new Date().toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-    }
-
-    return new Date(date).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const formatSeason = (season) => {
-    if (!season || season.length === 0) {
-      return 'All seasons';
-    }
-
-    return season
-      .map((s) => String(s).replace(/_/g, ' '))
-      .join(', ');
-  };
+  const hasPhoto = Boolean(photoPreview);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="min-h-screen bg-white flex flex-col relative overflow-hidden"
-    >
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.14]"
-        style={{
-          backgroundImage: BG_PATTERN,
-          backgroundSize: '200px 200px',
-        }}
-      />
+    <div className="min-h-screen bg-[#FBF3E7] flex">
+      <Sidebar />
 
-      {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-neutral-200 relative z-10 bg-white">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 text-neutral-500 hover:text-pink-600 transition-colors rounded-full hover:bg-pink-50"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="flex items-center gap-3 md:gap-4 px-4 md:px-10 h-20 border-b border-[#e6d5b8] bg-[#FBF3E7]/95 backdrop-blur-sm shrink-0">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-full text-[#6b5645] hover:text-[#7a2331] hover:bg-[#f3e6cf] transition-colors shrink-0"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
 
-        <span className="font-display text-lg font-bold text-neutral-900">
-          Upload item
-        </span>
-      </div>
-
-      <main className="flex-1 w-full max-w-5xl mx-auto p-6 flex flex-col items-center justify-center relative z-10">
-
-        {/* ================= EMPTY STATE ================= */}
-        {!preview && !result && (
-          <div className="w-full max-w-lg">
-            <div className="text-center mb-8">
-              <h1 className="font-display text-2xl font-bold text-neutral-900 mb-2">
-                Add a new item
-              </h1>
-
-              <p className="text-sm text-neutral-500">
-                Snap a photo of any clothing item and we'll handle the rest.
-              </p>
-            </div>
-
-            <div
-              className={`w-full border-2 border-dashed rounded-2xl p-12 md:p-20 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 backdrop-blur-xl shadow-lg ${
-                isDragging
-                  ? 'border-pink-500 bg-pink-100/60'
-                  : 'border-pink-400 bg-pink-50/50 hover:border-pink-500 hover:bg-pink-100/50'
-              }`}
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              <div className="w-16 h-16 rounded-2xl bg-pink-100 flex items-center justify-center mb-4 text-pink-600">
-                <Upload className="w-8 h-8" />
-              </div>
-
-              <h3 className="text-xl font-bold text-neutral-900 mb-2 text-center font-display">
-                Drag and drop or click to upload
-              </h3>
-
-              <p className="text-xs text-neutral-500 text-center">
-                Supports JPG, PNG photos
-              </p>
-
+          <div className="flex-1 flex justify-center px-2">
+            <div className="relative w-full max-w-md">
+              <Search className="w-4 h-4 text-[#a89478] absolute left-4 top-1/2 -translate-y-1/2" />
               <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/*"
-                capture="environment"
-                className="hidden"
+                type="text"
+                placeholder="Search in your almari..."
+                className="w-full bg-white border border-[#e6d5b8] rounded-full pl-10 pr-4 py-2.5 text-sm text-[#3d2417] placeholder:text-[#a89478] focus:outline-none focus:ring-2 focus:ring-[#7a2331]/20 focus:border-[#7a2331] transition"
               />
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 mt-8">
-              <div className="text-center">
-                <div className="w-9 h-9 rounded-lg bg-pink-100 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-xs font-bold text-pink-700">1</span>
-                </div>
-
-                <p className="text-xs font-medium text-neutral-900">
-                  Upload a photo
-                </p>
-
-                <p className="text-[11px] text-neutral-400 mt-0.5">
-                  One item at a time
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div className="w-9 h-9 rounded-lg bg-pink-100 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-xs font-bold text-pink-700">2</span>
-                </div>
-
-                <p className="text-xs font-medium text-neutral-900">
-                  We tag it
-                </p>
-
-                <p className="text-[11px] text-neutral-400 mt-0.5">
-                  Background removed, categorized
-                </p>
-              </div>
-
-              <div className="text-center">
-                <div className="w-9 h-9 rounded-lg bg-pink-100 flex items-center justify-center mx-auto mb-2">
-                  <span className="text-xs font-bold text-neutral-900">3</span>
-                </div>
-
-                <p className="text-xs font-medium text-neutral-900">
-                  It's in your closet
-                </p>
-
-                <p className="text-[11px] text-neutral-400 mt-0.5">
-                  Ready for outfits
-                </p>
-              </div>
             </div>
           </div>
-        )}
 
-        {/* ================= PREVIEW STATE ================= */}
-        {/* PREVIEW STATE */}
-        {preview && !result && (
-          <div className="w-full max-w-lg flex flex-col items-center gap-6">
+          <button className="relative p-2 rounded-full text-[#6b5645] hover:text-[#7a2331] hover:bg-[#f3e6cf] transition-colors shrink-0">
+            <Bell className="w-5 h-5" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#7a2331] rounded-full ring-2 ring-[#FBF3E7]" />
+          </button>
+        </header>
 
-            <div className="relative w-full aspect-[3/4] max-h-[480px] rounded-2xl overflow-hidden bg-white border border-neutral-200 shadow-md">
+        <main className="flex-1 px-4 md:px-10 py-5 max-w-[1440px] w-full mx-auto">
+          <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+            <div>
+              <p className="text-xs text-[#a89478] mb-0.5">My Almari <span className="mx-1">/</span> Add New Item</p>
+              <h1 className="text-xl md:text-2xl font-display font-bold text-[#3d2417]">Add New Item</h1>
+            </div>
+            <button className="inline-flex items-center gap-2 text-[#6b5645] border border-[#e6d5b8] hover:bg-[#f3e6cf] text-xs font-semibold px-4 py-2 rounded-full transition">
+              <HelpCircle className="w-3.5 h-3.5" />
+              Learn how to add items
+            </button>
+          </div>
 
-              <img
-                src={preview}
-                alt="Preview"
-                className="w-full h-full object-contain p-3"
-              />
+          {uploadError && (
+            <div className="mb-6 flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <p className="text-xs font-medium flex-1">{uploadError}</p>
+              <button onClick={() => setUploadError(null)} className="text-xs font-semibold hover:underline shrink-0">
+                Dismiss
+              </button>
+            </div>
+          )}
 
-              {uploading && (
-                <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center backdrop-blur-md z-10">
-                  <div className="w-10 h-10 border-2 border-pink-200 border-t-pink-600 rounded-full animate-spin mb-4" />
+          <div className="bg-[#FCF6EC] rounded-3xl border border-[#e6d5b8] shadow-[0_8px_30px_rgba(61,36,23,0.08)] p-4 md:p-6">
+            {isSuccess ? (
+              <div className="flex flex-col items-center text-center py-14">
+                <div className="w-14 h-14 rounded-2xl bg-[#7a2331]/10 flex items-center justify-center mb-5">
+                  <CheckCircle className="w-7 h-7 text-[#7a2331]" />
+                </div>
+                <h2 className="text-xl font-display font-bold text-[#3d2417] mb-1.5">Added to your Almari!</h2>
+                <p className="text-sm text-[#8a7360] mb-8 max-w-sm">
+                  Your item is saved and ready to be styled into an outfit.
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleUploadAnother}
+                    className="px-6 py-2.5 rounded-xl text-sm font-semibold text-[#6b5645] border border-[#e6d5b8] hover:bg-[#f3e6cf] transition"
+                  >
+                    Upload another item
+                  </button>
+                  <button
+                    onClick={() => navigate('/closet')}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold bg-[#7a2331] hover:bg-[#631b28] text-white shadow-sm transition"
+                  >
+                    View in Closet
+                  </button>
+                </div>
+              </div>
+            ) : !hasPhoto ? (
+              <div className="flex flex-col items-center text-center py-10">
+                <h2 className="text-xl font-display font-bold text-[#3d2417] mb-1.5">Add a new item</h2>
+                <p className="text-sm text-[#8a7360] mb-8">Snap a photo of any clothing item and we'll handle the rest.</p>
 
-                  <div className="text-center">
-                    <p className="text-neutral-900 font-semibold text-sm">
-                      Analyzing your item...
-                    </p>
+                <label className="cursor-pointer w-full max-w-lg border-2 border-dashed border-[#e6d5b8] hover:border-[#7a2331] rounded-2xl bg-white/60 hover:bg-white transition flex flex-col items-center justify-center py-14 px-8">
+                  <div className="w-14 h-14 rounded-2xl bg-[#7a2331]/10 flex items-center justify-center mb-5">
+                    <UploadCloud className="w-7 h-7 text-[#7a2331]" />
+                  </div>
+                  <p className="text-base font-display font-bold text-[#3d2417] mb-1">Drag and drop or click to upload</p>
+                  <p className="text-xs text-[#a89478]">Supports JPG, PNG photos</p>
+                  <input type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
+                </label>
 
-                    <p className="text-neutral-500 text-xs mt-1">
-                      Detecting category, color, style, and other details...
-                    </p>
+                <div className="grid grid-cols-3 gap-6 mt-10 max-w-lg w-full">
+                  {[
+                    { n: 1, title: 'Upload a photo', sub: 'One item at a time' },
+                    { n: 2, title: 'We tag it', sub: 'Background removed, categorised' },
+                    { n: 3, title: "It's in your closet", sub: 'Ready for outfits' },
+                  ].map(s => (
+                    <div key={s.n} className="text-center">
+                      <div className="w-7 h-7 mx-auto rounded-lg bg-[#7a2331]/10 text-[#7a2331] text-xs font-bold flex items-center justify-center mb-2">
+                        {s.n}
+                      </div>
+                      <p className="text-xs font-semibold text-[#3d2417] mb-0.5">{s.title}</p>
+                      <p className="text-[11px] text-[#a89478]">{s.sub}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-10 max-w-lg w-full bg-white/70 border border-[#e6d5b8] rounded-2xl p-4 text-left">
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-[#3d2417] mb-2.5">
+                    <Lightbulb className="w-3.5 h-3.5 text-[#c9a769]" />
+                    Helpful tips
+                  </p>
+                  <ul className="space-y-2 text-[11px] text-[#6b5645] list-disc list-inside">
+                    <li>Use natural light for true colors</li>
+                    <li>Show the full item in frame</li>
+                    <li>Avoid busy or cluttered backgrounds</li>
+                    <li>Multiple angles help us understand better</li>
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              /* Once a photo has been selected, the dropzone/recent-uploads panel goes
+                 away entirely and details + preview take up the full width. */
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-7 flex flex-col gap-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-display font-bold text-[#3d2417]">Item details</h3>
+                    {isAnalyzing ? (
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-[#a89478]">
+                        <span className="w-3 h-3 border-2 border-[#e6d5b8] border-t-[#7a2331] rounded-full animate-spin" />
+                        Detecting details from your photo...
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-[#7a2331]">
+                        <Sparkles className="w-3 h-3" />
+                        Auto-filled — edit anything that's off
+                      </span>
+                    )}
+                  </div>
+
+                  <div className={`grid grid-cols-2 gap-4 transition-opacity ${isAnalyzing ? 'opacity-40 pointer-events-none' : ''}`}>
+                    <SelectField
+                      label="Category"
+                      value={category}
+                      onChange={val => { setCategory(val); setSubcategory(''); }}
+                      options={Object.keys(CATEGORY_OPTIONS)}
+                      placeholder="Select category"
+                    />
+                    <SelectField
+                      label="Subcategory"
+                      value={subcategory}
+                      onChange={setSubcategory}
+                      options={subcategoryOptions}
+                      placeholder="Select subcategory"
+                    />
+
+                    <label className="block">
+                      <span className="block text-xs font-semibold text-[#6b5645] mb-1.5">Color</span>
+                      <div className="relative">
+                        <select
+                          value={color}
+                          onChange={e => setColor(e.target.value)}
+                          className="w-full bg-white border border-[#e6d5b8] rounded-xl pl-9 pr-3 py-2.5 text-sm text-[#3d2417] focus:outline-none focus:ring-2 focus:ring-[#7a2331]/20 focus:border-[#7a2331] transition capitalize"
+                        >
+                          <option value="">Select color</option>
+                          {color && !COLOR_OPTIONS.some(c => c.label.toLowerCase() === color.toLowerCase()) && (
+                            <option value={color}>{color}</option>
+                          )}
+                          {COLOR_OPTIONS.map(c => (
+                            <option key={c.label} value={c.label}>{c.label}</option>
+                          ))}
+                        </select>
+                        <span
+                          className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border border-[#e6d5b8]"
+                          style={{ backgroundColor: resolveColorSwatch(color) }}
+                        />
+                      </div>
+                    </label>
+
+                    <SelectField label="Season" value={season} onChange={setSeason} options={SEASON_OPTIONS} placeholder="Select season" />
                   </div>
                 </div>
-              )}
 
-            </div>
-
-            {!uploading && (
-              <div className="w-full">
-
-                <p className="text-center text-xs text-neutral-500 mb-4">
-                  {file.name} ({(file.size / (1024 * 1024)).toFixed(2)} MB)
-                </p>
-
-                <div className="flex gap-3">
-
-                  <button
-                    onClick={resetState}
-                    className="flex-1 border border-neutral-300 text-neutral-700 font-medium text-sm py-2.5 rounded-lg hover:bg-neutral-50 transition"
-                  >
-                    Change
-                  </button>
-
-                  <button
-                    onClick={handleUpload}
-                    className="flex-1 bg-pink-600 text-white font-medium text-sm py-2.5 rounded-lg hover:bg-pink-700 transition"
-                  >
-                    Upload photo
-                  </button>
-
+                {/* RIGHT: preview */}
+                <div className="lg:col-span-5 flex flex-col gap-4">
+                  <div>
+                    <div className="flex justify-center mb-2">
+                      <span className="bg-[#2b1810] text-[#d4b16a] text-[10px] font-bold tracking-wider px-3 py-1 rounded-full border border-[#c9a769]">
+                        PREVIEW
+                      </span>
+                    </div>
+                    <div className="h-64 md:h-72 bg-white rounded-2xl border border-[#e6d5b8] overflow-hidden flex items-center justify-center">
+                      <img src={photoPreview} alt="Item preview" className="w-full h-full object-contain p-3" />
+                    </div>
+                    <label className="cursor-pointer w-full mt-2.5 inline-flex items-center justify-center gap-2 text-[#7a2331] border border-[#7a2331]/30 hover:bg-[#7a2331]/5 text-xs font-semibold px-4 py-2 rounded-xl transition">
+                      <Camera className="w-3.5 h-3.5" />
+                      Change photo
+                      <input type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
+                    </label>
+                  </div>
                 </div>
-
               </div>
             )}
 
+            {hasPhoto && !isSuccess && (
+              <div className="mt-6 pt-4 border-t border-[#e6d5b8] flex flex-col items-center gap-2.5">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleCancel}
+                    className="px-6 py-2.5 rounded-xl text-sm font-semibold text-[#6b5645] border border-[#e6d5b8] hover:bg-[#f3e6cf] transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isSaving || isAnalyzing}
+                    className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition ${
+                      isSaving || isAnalyzing ? 'bg-[#e6d5b8] text-[#a89478] cursor-not-allowed' : 'bg-[#7a2331] hover:bg-[#631b28] text-white'
+                    }`}
+                  >
+                    {isSaving ? (
+                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Tag className="w-4 h-4" />
+                    )}
+                    {isSaving ? 'Adding...' : 'Add to Almari'}
+                  </button>
+                </div>
+                <p className="flex items-center gap-1.5 text-[11px] text-[#a89478]">
+                  <Lock className="w-3 h-3" />
+                  Your items are private and secure
+                </p>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* ================= RESULT STATE ================= */}
-        {result && result.item && (
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="w-full flex flex-col items-center gap-6"
-          >
-
-            {/* Item image */}
-            <div className="w-full aspect-square max-h-[400px] rounded-2xl overflow-hidden bg-white border border-pink-200 shadow-md relative p-4 flex items-center justify-center">
-
-              <img
-                src={result.item.image_url || preview}
-                alt="Uploaded item"
-                className="max-h-full max-w-full object-contain"
-              />
-
-              <div className="absolute top-4 right-4 bg-pink-100 text-pink-700 rounded-full p-1.5">
-                <CheckCircle className="w-5 h-5" />
+          {recentItems.length > 0 && (
+            <div className="bg-[#FCF6EC] rounded-3xl border border-[#e6d5b8] shadow-[0_8px_30px_rgba(61,36,23,0.08)] p-4 md:p-6 mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-display font-bold text-[#3d2417]">Recent uploads</p>
+                <button onClick={() => navigate('/closet')} className="text-xs font-semibold text-[#7a2331] hover:underline">
+                  View all
+                </button>
               </div>
-
-            </div>
-
-            {/* Information */}
-            <div className="w-full bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
-
-              <div className="grid grid-cols-1 md:grid-cols-2">
-
-                {/* LEFT */}
-                <div className="p-6 border-b md:border-b-0 md:border-r border-neutral-200">
-
-                  <p className="text-xs font-semibold uppercase tracking-wider text-pink-600 mb-4">
-                    Item details
-                  </p>
-
-                  <div className="space-y-4">
-
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-neutral-400">
-                        Item
-                      </p>
-
-                      <p className="mt-1 text-lg font-bold text-neutral-900 capitalize">
-                        {result.item.subcategory ||
-                          result.item.category ||
-                          '—'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-neutral-400">
-                        Category
-                      </p>
-
-                      <p className="mt-1 text-sm font-semibold text-neutral-900 capitalize">
-                        {result.item.category || '—'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-neutral-400">
-                        Subcategory
-                      </p>
-
-                      <p className="mt-1 inline-block capitalize text-xs font-semibold bg-pink-100 text-pink-700 px-2.5 py-1 rounded-full">
-                        {result.item.subcategory || '—'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-neutral-400">
-                        Color
-                      </p>
-
-                      <p className="mt-1 text-sm font-semibold text-neutral-900 capitalize">
-                        {result.color || metadata?.color || '—'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-neutral-400">
-                        Date added
-                      </p>
-
-                      <p className="mt-1 text-sm font-semibold text-neutral-900">
-                        {formatDate(
-                          result.date_added ||
-                            result.item.created_at ||
-                            metadata?.created_at
-                        )}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-neutral-400">
-                        Best time to wear
-                      </p>
-
-                      <p className="mt-1 text-sm font-semibold text-neutral-900 capitalize">
-                        {formatSeason(result.season || metadata?.season)}
-                      </p>
-                    </div>
-
+              <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-3">
+                {recentItems.map(item => (
+                  <div key={item.id} className="aspect-square rounded-xl bg-white border border-[#e6d5b8] overflow-hidden">
+                    <img src={item.image_url} alt={item.subcategory} className="w-full h-full object-contain p-1.5" />
                   </div>
-                </div>
-
-                {/* RIGHT */}
-                <div className="p-6 bg-pink-50/40 flex flex-col justify-center">
-
-                  <div className="w-11 h-11 rounded-xl bg-pink-100 flex items-center justify-center mb-4">
-                    <CheckCircle className="w-5 h-5 text-pink-600" />
-                  </div>
-
-                  <p className="text-xs font-semibold uppercase tracking-wider text-pink-600 mb-2">
-                    Automatically detected
-                  </p>
-
-                  <h3 className="font-display text-xl font-bold text-neutral-900 mb-3">
-                    Your item is ready!
-                  </h3>
-
-                  <p className="text-sm leading-relaxed text-neutral-500">
-                    We automatically identified the category, subcategory,
-                    color, date added, and best time to wear based on your
-                    uploaded item.
-                  </p>
-
-                  <div className="mt-5 rounded-xl bg-white border border-pink-100 px-4 py-3">
-                    <p className="text-xs leading-relaxed text-neutral-500">
-                      You can edit these fields later in your Closet.
-                    </p>
-                  </div>
-
-                </div>
-
+                ))}
               </div>
             </div>
+          )}
+        </main>
+      </div>
 
-            {/* Buttons */}
-            <div className="flex gap-3 w-full">
-
-              <button
-                onClick={resetState}
-                className="flex-1 border border-neutral-300 text-neutral-700 font-medium text-sm py-2.5 rounded-lg hover:bg-neutral-50 transition"
-              >
-                Upload another
-              </button>
-
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="flex-1 bg-pink-600 text-white font-medium text-sm py-2.5 rounded-lg hover:bg-pink-700 transition"
-              >
-                View closet
-              </button>
-
-            </div>
-
-          </motion.div>
-        )}
-
-        {/* ================= ERROR ================= */}
-        {error && !uploading && (
-          <motion.div
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="mt-6 w-full max-w-lg p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col items-center gap-3 text-center"
-          >
-
-            <AlertCircle className="w-6 h-6 text-red-600" />
-
-            <p className="text-red-700 text-xs font-medium">
-              {error}
-            </p>
-
-            <button
-              onClick={() => setError(null)}
-              className="text-sm font-medium text-pink-600 hover:underline"
-            >
-              Try again
-            </button>
-
-          </motion.div>
-        )}
-
-      </main>
-    </motion.div>
+      <button
+        onClick={() => navigate('/chatbot')}
+        title="AI Stylist"
+        className="fixed bottom-6 right-6 z-30 flex flex-col items-center justify-center w-20 h-20 rounded-full bg-[#7a2331] hover:bg-[#631b28] text-white shadow-lg transition"
+      >
+        <Sparkles className="w-5 h-5 mb-0.5" />
+        <span className="text-[9px] font-semibold">AI Stylist</span>
+      </button>
+    </div>
   );
 }

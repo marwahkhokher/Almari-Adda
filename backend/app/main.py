@@ -289,17 +289,20 @@ async def visualize_outfit(
         with open(person_photo_path, "rb") as f:
             person_bytes = f.read()
 
+    import traceback
+
     try:
         if dress_bytes:
-            result_bytes = dress_function.remote(person_bytes, dress_bytes)
+            result_bytes = await dress_function.remote.aio(person_bytes, dress_bytes)
         else:
-            result_bytes = catvton_function.remote(
+            result_bytes = await catvton_function.remote.aio(
                 person_bytes,
                 top_image_bytes=top_bytes,
                 bottom_image_bytes=bottom_bytes,
             )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Visualization failed: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Visualization failed: {repr(e)}")
 
     result_filename = f"visualization_{uuid.uuid4()}.png"
     supabase.storage.from_("clothing-images").upload(
