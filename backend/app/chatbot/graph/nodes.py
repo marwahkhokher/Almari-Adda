@@ -244,40 +244,37 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
                 break
 
     def _outfit_style_score(outfit: dict) -> int:
-        """Score an outfit by how well it matches the occasion's style preferences."""
-        if not style_prefs:
-            return 0
+        """Score an outfit by how well it matches the occasion's style preferences & formality."""
         score = 0
-        preferred_subs = style_prefs.get("prefer", set())
-        preferred_cats = style_prefs.get("category_prefer", set())
-        for slot in ("top", "bottom", "item"):
-            piece = outfit.get(slot)
-            if not piece:
-                continue
-            sub = (piece.get("subcategory") or "").lower()
-            cat = (piece.get("category") or "").lower()
-            # Strong match: subcategory is in preferred list
-            if sub in preferred_subs or any(p in sub for p in preferred_subs):
-                score += 10
-            # Moderate match: category is preferred
-            if cat in preferred_cats:
-                score += 3
-        return score
+        if style_prefs:
+            preferred_subs = style_prefs.get("prefer", set())
+            preferred_cats = style_prefs.get("category_prefer", set())
+            for slot in ("top", "bottom", "item"):
+                piece = outfit.get(slot)
+                if not piece:
+                    continue
+                sub = (piece.get("subcategory") or "").lower()
+                cat = (piece.get("category") or "").lower()
+                if sub in preferred_subs or any(p in sub for p in preferred_subs):
+                    score += 15
+                if cat in preferred_cats:
+                    score += 5
 
-    # Formal/Semi-formal occasion check
-    FORMAL_OCCASIONS = {"wedding", "interview", "formal", "gala", "black tie", "eid", "reception", "party", "office", "business", "dinner", "mehndi"}
-    if occasion and occ_lower in FORMAL_OCCASIONS:
-        def _is_formal_enough(outfit: dict) -> bool:
+        # Formality score boost/penalty
+        desired_formality = _desired_formality(state.get("occasion"))
+        if desired_formality:
             for slot in ("top", "bottom", "item"):
                 piece = outfit.get(slot)
                 if piece:
                     sub = piece.get("subcategory", "") or ""
                     formality = get_formality(sub)
-                    if formality == "casual":
-                        return False
-            return True
-
-        filtered_outfits = [o for o in filtered_outfits if _is_formal_enough(o)]
+                    if formality == desired_formality:
+                        score += 10
+                    elif is_formality_compatible(formality, desired_formality):
+                        score += 5
+                    elif formality == "casual" and desired_formality in ("formal", "semi-formal"):
+                        score -= 20
+        return score
 
     if color_constraint:
         enriched_by_id = {i.id: i for i in state.get("relevant_items", [])}
@@ -292,49 +289,54 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
                     return True
             return False
 
-        filtered_outfits = [o for o in filtered_outfits if _matches_color(o)]
-
-    # Filter by occasion's formality if we could infer one
-    desired_formality = _desired_formality(state.get("occasion"))
-    if desired_formality:
-        def _matches_formality(outfit: dict) -> bool:
-            for slot in ("top", "bottom", "item"):
-                piece = outfit.get(slot)
-                if not piece:
-                    continue
-                sub = piece.get("subcategory") or piece.get("category") or ""
-                item_formality = get_formality(sub)
-                if item_formality == "unknown" or not is_formality_compatible(item_formality, desired_formality):
-                    return False
-            return True
-
-        formality_matched = [o for o in filtered_outfits if _matches_formality(o)]
-        filtered_outfits = formality_matched or filtered_outfits
+        color_matched = [o for o in filtered_outfits if _matches_color(o)]
+        filtered_outfits = color_matched or filtered_outfits
 
     # ── Pick the BEST outfit by style-preference score ────────────
     if not filtered_outfits:
         chosen_items: List[ClothingItem] = []
     else:
         msg_lower = (state.get("user_message") or "").lower()
-        is_regen = any(kw in msg_lower for kw in ["regenerate", "different", "another", "new combo", "try again", "switch", "something else"])
+        is_regen = any(kw in msg_lower for kw in ["regenerate", "different", "another", "new combo", "try again", "switch", "something else"]) or bool(state.get("excluded_outfit_keys"))
 
-        def _outfit_key(o):
+        def _get_outfit_key_local(o):
             t_id = o.get("top", {}).get("id") or o.get("item", {}).get("id") or ""
             b_id = o.get("bottom", {}).get("id") or ""
             return f"{t_id}:{b_id}"
 
-        # If regenerate requested, filter out previously seen outfits if possible
-        if is_regen:
-            unseen = [o for o in filtered_outfits if _outfit_key(o) not in _SEEN_OUTFIT_KEYS]
-            if unseen:
-                filtered_outfits = unseen
+        def _get_item_ids(o):
+            ids = set()
+            for slot in ("top", "bottom", "item"):
+                if o.get(slot, {}).get("id"):
+                    ids.add(o[slot]["id"])
+            return ids
 
-        # Score remaining outfits by occasion-style match
-        scored = [(o, _outfit_style_score(o)) for o in filtered_outfits]
-        max_score = max(s for _, s in scored)
-        top_scored = [o for o, s in scored if s == max_score]
-        top_outfit = random.choice(top_scored)
-        _SEEN_OUTFIT_KEYS.add(_outfit_key(top_outfit))
+        all_excluded_keys = set(state.get("excluded_outfit_keys", []) or []) | _SEEN_OUTFIT_KEYS
+        excluded_item_ids = set()
+        for k in all_excluded_keys:
+            for part in k.split(":"):
+                if part:
+                    excluded_item_ids.add(part)
+
+        candidates = list(filtered_outfits)
+
+        if is_regen:
+            # Level 1: try outfits with completely unused items
+            unused_item_outfits = [o for o in candidates if not (_get_item_ids(o) & excluded_item_ids)]
+            # Level 2: try outfits with unseen outfit keys
+            unseen_key_outfits = [o for o in candidates if _get_outfit_key_local(o) not in all_excluded_keys]
+
+            if unused_item_outfits:
+                candidates = unused_item_outfits
+            elif unseen_key_outfits:
+                candidates = unseen_key_outfits
+
+        # Score candidates and pick top or top weighted
+        scored = [(o, _outfit_style_score(o)) for o in candidates]
+        max_s = max(s for _, s in scored)
+        top_tier = [o for o, s in scored if s >= (max_s - 5)]
+        top_outfit = random.choice(top_tier if top_tier else [o for o, _ in scored])
+        _SEEN_OUTFIT_KEYS.add(_get_outfit_key_local(top_outfit))
         chosen_items = []
         for slot in ("top", "bottom", "item"):
             piece = top_outfit.get(slot)
