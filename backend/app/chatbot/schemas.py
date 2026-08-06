@@ -25,6 +25,7 @@ class ChatMessageRequest(BaseModel):
     session_id: str = Field(..., description="Client-generated session identifier")
     user_id: Optional[str] = Field("anonymous_user", description="Authenticated user ID")
     message: str = Field(..., min_length=1, description="User's natural language message")
+    excluded_outfit_keys: List[str] = Field(default_factory=list, description="Outfit keys to exclude for regeneration")
 
 
 class OutfitSuggestion(BaseModel):

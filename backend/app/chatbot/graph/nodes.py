@@ -189,7 +189,16 @@ async def generate_outfit_reasoning(state: ChatbotState) -> ChatbotState:
     color_note = f", using only {color_constraint} items" if color_constraint else ""
 
     # Filter P2's outfits by occasion formality and color constraint
-    filtered_outfits = raw_outfits
+    excluded_keys = set(state.get("excluded_outfit_keys", []) or []) | _SEEN_OUTFIT_KEYS
+
+    def _get_outfit_key(o: dict) -> str:
+        t_id = o.get("top", {}).get("id") or o.get("item", {}).get("id") or ""
+        b_id = o.get("bottom", {}).get("id") or ""
+        return f"{t_id}:{b_id}"
+
+    filtered_outfits = [o for o in raw_outfits if _get_outfit_key(o) not in excluded_keys]
+    if not filtered_outfits:
+        filtered_outfits = raw_outfits  # Fallback to full list if all excluded
 
     # ── Occasion-aware style preferences ──────────────────────────
     # Maps occasions to preferred subcategory keywords so the chatbot

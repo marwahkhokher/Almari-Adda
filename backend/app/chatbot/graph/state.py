@@ -31,6 +31,9 @@ class ChatbotState(TypedDict, total=False):
     # Output of styling reasoning
     outfit_suggestions: List[OutfitSuggestion]
 
+    # Outfit keys to exclude when user requests regenerate
+    excluded_outfit_keys: Optional[List[str]]
+
     # Final formatted reply text
     reply: str
 

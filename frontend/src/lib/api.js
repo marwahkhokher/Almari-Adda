@@ -207,7 +207,7 @@ export async function suggestOutfits() {
 // ============================================================
 
 // POST /chatbot/message
-export async function sendChatMessage(sessionId, message, userId = "anonymous_user") {
+export async function sendChatMessage(sessionId, message, userId = "anonymous_user", excludedOutfitKeys = []) {
   return request("/chatbot/message", {
     method: "POST",
     headers: {
@@ -217,6 +217,7 @@ export async function sendChatMessage(sessionId, message, userId = "anonymous_us
       session_id: sessionId,
       user_id: userId,
       message: message,
+      excluded_outfit_keys: excludedOutfitKeys,
     }),
   });
 }

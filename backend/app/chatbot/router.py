@@ -42,6 +42,7 @@ async def send_message(payload: ChatMessageRequest) -> ChatMessageResponse:
         "session_id": payload.session_id,
         "user_message": payload.message,
         "history": history,
+        "excluded_outfit_keys": payload.excluded_outfit_keys or [],
     }
 
     try:

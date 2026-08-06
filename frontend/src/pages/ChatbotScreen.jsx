@@ -130,9 +130,9 @@ export default function ChatbotScreen() {
     scrollToBottom();
   }, [messages, loading]);
 
-  const handleSend = async (customMessage = null) => {
-    const messageText = customMessage || input.trim();
-    if (!messageText || loading) return;
+  const handleSend = async (customMessage = null, excludedKeys = []) => {
+    const messageText = customMessage || input;
+    if (!messageText.trim() || loading) return;
 
     const userMessage = {
       id: Date.now().toString(),
@@ -146,7 +146,7 @@ export default function ChatbotScreen() {
     setLoading(true);
 
     try {
-      const response = await sendChatMessage(sessionId, messageText, userId);
+      const response = await sendChatMessage(sessionId, messageText, userId, excludedKeys);
       if (response.title) setSessionTitle(response.title);
       loadUserSessions();
 
@@ -241,7 +241,21 @@ export default function ChatbotScreen() {
   };
 
   const handleRegenerate = (originalPrompt) => {
-    handleSend(`${originalPrompt} (suggest something different this time)`);
+    const previousOutfitKeys = messages
+      .flatMap((msg) => msg.outfitSuggestions || [])
+      .map((outfit) => {
+        const items = outfit.items || [];
+        const topItem = items.find((i) => (i.category || '').toLowerCase() === 'top' || (i.category || '').toLowerCase() === 'outerwear') || items[0];
+        const bottomItem = items.find((i) => (i.category || '').toLowerCase() === 'bottom') || items[1];
+        const topId = topItem?.id || '';
+        const bottomId = bottomItem?.id || '';
+        return `${topId}:${bottomId}`;
+      })
+      .filter((k) => k !== ':');
+
+    const basePrompt = originalPrompt.replace(/\s*\([^)]*different[^)]*\)/gi, '').trim();
+
+    handleSend(`${basePrompt} (suggest something different this time)`, previousOutfitKeys);
   };
 
   const presetChips = [
