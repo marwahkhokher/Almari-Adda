@@ -99,29 +99,17 @@ export default function Sidebar({
     <div className="relative h-full w-full overflow-hidden bg-[#3b2113]">
       {/* Sidebar artwork */}
       <img
-        src="/almari-sidebar.png"
+        src="/plain.png"
         alt="Almari Adda sidebar"
         className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none object-fill"
         draggable={false}
         onError={(event) => {
           console.error(
-            'Sidebar image failed to load. Expected: public/almari-sidebar.png'
+            'Sidebar image failed to load. Expected: public/plain.png'
           );
 
           event.currentTarget.style.display =
             'none';
-        }}
-      />
-      {/* Decorative cover image */}
-      <img
-        src="/cover.png"
-        alt=""
-        className="absolute z-10 pointer-events-none select-none"
-        style={{
-          left: '15%',
-          top: '65%',
-          width: '180px',
-          height: 'auto',
         }}
       />
 
