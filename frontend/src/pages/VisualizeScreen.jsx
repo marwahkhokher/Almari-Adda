@@ -8,7 +8,7 @@ import {
   CloudUpload, Home, Menu, User, Wand2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { getCatalogue, visualizeOutfit } from '../lib/api.js';
+import { getCatalogue, visualizeOutfit, pollJob } from '../lib/api.js';
 import Sidebar from '../components/Sidebar2.jsx';
 import ProfileDrawer from './ProfileScreen.jsx';
 
@@ -219,8 +219,31 @@ export default function VisualizeScreen() {
     setGenError(null);
     try {
       const itemIds = selectedItems.map(i => i.id);
-      const response = await visualizeOutfit(itemIds, gender, personPhotoFile);
-      setResultImageUrl(response.visualization_url);
+      let response = await visualizeOutfit(itemIds, gender, personPhotoFile);
+      console.log('visualizeOutfit response:', response);
+
+      // The backend runs this as an async job — a first response with a
+      // job_id and no image field yet means it's still processing, so poll
+      // until it's actually done instead of treating this as the final result.
+      const hasDirectUrl = response?.visualization_url || response?.image_url || response?.result_url || response?.output_url || response?.url;
+      if (!hasDirectUrl && response?.job_id) {
+        console.log('Job is async, polling for completion:', response.job_id);
+        response = await pollJob(response.job_id);
+        console.log('pollJob final response:', response);
+      }
+
+      const url =
+        response?.visualization_url ||
+        response?.image_url ||
+        response?.result_url ||
+        response?.output_url ||
+        response?.url;
+      if (!url) {
+        throw new Error(
+          'The job finished but no image URL was found in the response. Check the console log for the raw shape.'
+        );
+      }
+      setResultImageUrl(url);
     } catch (error) {
       console.error('Visualization failed', error);
       setGenError(error.message || 'Failed to generate visualization');
@@ -421,9 +444,7 @@ export default function VisualizeScreen() {
                       )}
 
                       <div
-                        className={`relative z-[5] flex flex-col items-center justify-center text-center px-8 ${
-                          personPhotoPreview ? 'w-full h-full bg-white/75 backdrop-blur-sm' : ''
-                        }`}
+                        className="relative z-[5] flex flex-col items-center justify-center text-center px-8 w-full h-full"
                       >
                         {!personPhotoPreview && (
                           <div className="w-16 h-16 rounded-2xl bg-[#f3e6cf] flex items-center justify-center mb-5">

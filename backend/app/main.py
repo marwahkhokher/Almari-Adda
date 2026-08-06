@@ -316,43 +316,83 @@ def outfit_suggest():
 
     return {"outfits": outfits}
 
-def _download_image_bytes(url: str) -> bytes:
-    response = requests.get(url)
-    response.raise_for_status()
-    return response.content
+def _download_image_bytes(url: str, retries: int = 2, backoff_seconds: float = 0.5) -> bytes:
+    """Downloads an image, retrying a couple times on transient connection
+    drops (e.g. 'Connection aborted' / RemoteDisconnected) before giving up."""
+    import time
 
+    last_exc = None
+    for attempt in range(retries + 1):
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            return response.content
+        except requests.exceptions.RequestException as e:
+            last_exc = e
+            if attempt < retries:
+                time.sleep(backoff_seconds)
+                continue
+            raise
+    raise last_exc  # pragma: no cover
 
 def _generate_local_overlay(person_bytes: bytes, top_bytes: bytes = None, bottom_bytes: bytes = None, dress_bytes: bytes = None) -> bytes:
     import io
-    from PIL import Image
+    from PIL import Image, ImageFilter
 
     person_img = Image.open(io.BytesIO(person_bytes)).convert("RGBA")
     w, h = person_img.size
 
+    def _prep_garment(img_bytes, max_w_frac, max_h_frac):
+        """Load a garment image, strip a near-white background if it doesn't
+        already have real transparency, and resize it to FIT within a max
+        box while preserving its original aspect ratio (no stretching)."""
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+
+        # If there's no real transparency (fully opaque alpha channel), this
+        # is probably a plain product photo on a white background rather
+        # than a segmented cutout — knock out near-white pixels so it isn't
+        # a flat rectangle when pasted.
+        if img.getchannel("A").getextrema() == (255, 255):
+            pixels = img.load()
+            for y in range(img.height):
+                for x in range(img.width):
+                    r, g, b, a = pixels[x, y]
+                    if r > 235 and g > 235 and b > 235:
+                        pixels[x, y] = (r, g, b, 0)
+
+        max_w = max(1, int(w * max_w_frac))
+        max_h = max(1, int(h * max_h_frac))
+        img.thumbnail((max_w, max_h), Image.LANCZOS)  # preserves aspect ratio, unlike .resize()
+        return img
+
+    def _soft_shadow(garment):
+        """Cheap drop shadow so the garment reads as sitting on the body
+        instead of looking like a flat sticker."""
+        shadow = Image.new("RGBA", garment.size, (0, 0, 0, 0))
+        shadow.putalpha(garment.getchannel("A").point(lambda a: min(a, 70)))
+        return shadow.filter(ImageFilter.GaussianBlur(6))
+
+    def _paste_centered(base, garment, center_x_frac, top_y_frac):
+        x = int(w * center_x_frac) - garment.width // 2
+        y = int(h * top_y_frac)
+        shadow = _soft_shadow(garment)
+        base.alpha_composite(shadow, (x + 4, y + 6))
+        base.alpha_composite(garment, (x, y))
+
     if dress_bytes:
-        dress_img = Image.open(io.BytesIO(dress_bytes)).convert("RGBA")
-        dress_img = dress_img.resize((int(w * 0.75), int(h * 0.7)), Image.LANCZOS)
-        offset_x = (w - dress_img.width) // 2
-        offset_y = int(h * 0.18)
-        person_img.alpha_composite(dress_img, (offset_x, offset_y))
+        dress_img = _prep_garment(dress_bytes, max_w_frac=0.55, max_h_frac=0.62)
+        _paste_centered(person_img, dress_img, center_x_frac=0.5, top_y_frac=0.20)
     else:
         if top_bytes:
-            top_img = Image.open(io.BytesIO(top_bytes)).convert("RGBA")
-            top_img = top_img.resize((int(w * 0.65), int(h * 0.4)), Image.LANCZOS)
-            offset_x = (w - top_img.width) // 2
-            offset_y = int(h * 0.18)
-            person_img.alpha_composite(top_img, (offset_x, offset_y))
+            top_img = _prep_garment(top_bytes, max_w_frac=0.5, max_h_frac=0.32)
+            _paste_centered(person_img, top_img, center_x_frac=0.5, top_y_frac=0.20)
         if bottom_bytes:
-            bottom_img = Image.open(io.BytesIO(bottom_bytes)).convert("RGBA")
-            bottom_img = bottom_img.resize((int(w * 0.6), int(h * 0.45)), Image.LANCZOS)
-            offset_x = (w - bottom_img.width) // 2
-            offset_y = int(h * 0.45)
-            person_img.alpha_composite(bottom_img, (offset_x, offset_y))
+            bottom_img = _prep_garment(bottom_bytes, max_w_frac=0.45, max_h_frac=0.38)
+            _paste_centered(person_img, bottom_img, center_x_frac=0.5, top_y_frac=0.48)
 
     out_buf = io.BytesIO()
     person_img.convert("RGB").save(out_buf, format="PNG")
     return out_buf.getvalue()
-
 
 @app.post("/visualize")
 async def visualize_outfit(

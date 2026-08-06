@@ -1,4 +1,4 @@
-import modal
+﻿import modal
 
 app = modal.App("almari-adda-catvton")
 
@@ -14,7 +14,7 @@ image = (
 )
 
 
-@app.function(image=image, gpu="A10G", timeout=600)
+@app.function(image=image, gpu="A10G", timeout=600, min_containers=1)
 def run_full_outfit(person_image_bytes: bytes, top_image_bytes: bytes = None,
                      bottom_image_bytes: bytes = None):
     """
@@ -32,11 +32,6 @@ def run_full_outfit(person_image_bytes: bytes, top_image_bytes: bytes = None,
     import app as catvton_app
 
     def resize(img, target_size=(768, 1024)):
-        """
-        Resizes to fit within target_size while preserving aspect
-        ratio, then pads with white to reach the exact target
-        dimensions - avoids stretching/distortion.
-        """
         target_w, target_h = target_size
         ratio = min(target_w / img.width, target_h / img.height)
         new_w, new_h = int(img.width * ratio), int(img.height * ratio)
@@ -68,7 +63,7 @@ def run_full_outfit(person_image_bytes: bytes, top_image_bytes: bytes = None,
             {"background": person_path, "layers": [blank_mask_path]},
             top_path,
             "upper",
-            30, 2.5, 42,
+            18, 2.5, 42,
             "result only",
         )
         current_person_img = resize(result.convert("RGB"))
@@ -82,7 +77,7 @@ def run_full_outfit(person_image_bytes: bytes, top_image_bytes: bytes = None,
             {"background": person_path, "layers": [blank_mask_path]},
             bottom_path,
             "lower",
-            30, 2.5, 123,
+            18, 2.5, 123,
             "result only",
         )
         current_person_img = resize(result.convert("RGB"))
@@ -91,7 +86,7 @@ def run_full_outfit(person_image_bytes: bytes, top_image_bytes: bytes = None,
     current_person_img.save(output_buffer, format="PNG")
     return output_buffer.getvalue()
 
-@app.function(image=image, gpu="A10G", timeout=300)
+@app.function(image=image, gpu="A10G", timeout=300, min_containers=1)
 def run_dress_tryon(person_image_bytes: bytes, dress_image_bytes: bytes):
     """
     Single-pass try-on for a dress or full-outfit item (eastern wear,
@@ -135,7 +130,7 @@ def run_dress_tryon(person_image_bytes: bytes, dress_image_bytes: bytes):
         {"background": person_path, "layers": [blank_mask_path]},
         dress_path,
         "overall",
-        30, 2.5, 42,
+        18, 2.5, 42,
         "result only",
     )
 
@@ -146,7 +141,6 @@ def run_dress_tryon(person_image_bytes: bytes, dress_image_bytes: bytes):
 
 @app.local_entrypoint()
 def main():
-    # Quick manual test - change "female" to "male" to test the other option
     model_choice = "female"
 
     person_photo_path = f"app/ml/visualization/assets/person_base_{model_choice}.jpg"
@@ -163,4 +157,3 @@ def main():
         f.write(result)
 
     print(f"Saved full outfit result to test_images/modal_full_outfit_{model_choice}.png")
-
