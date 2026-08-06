@@ -1,88 +1,259 @@
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, DoorOpen, Upload, WandSparkles, Sparkles, Heart, LogOut } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext.jsx';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { X } from 'lucide-react';
 
-const NAV_ITEMS = [
-  { label: 'Dashboard', icon: Home, path: '/dashboard' },
-  { label: 'My Almari', icon: DoorOpen, path: '/closet' },
-  { label: 'Upload an Item', icon: Upload, path: '/upload' },
-  { label: 'Build your own Outfit', icon: WandSparkles, path: '/build-outfit' },
-  { label: 'AI Stylist', icon: Sparkles, path: '/chatbot' },
-  { label: 'Favourites', icon: Heart, path: '/favourites' },
-];
-
-export default function Sidebar() {
-  const navigate = useNavigate();
+export default function Sidebar({
+  navItems,
+  onNavigate,
+  onSignOut,
+  onClose,
+  mobile = false,
+}) {
   const location = useLocation();
-  const auth = useAuth() || {};
-  const { user, signOut } = auth;
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest';
+  const getActiveLabel = () => {
+    const pathname = location.pathname;
 
-  const handleLogout = async () => {
-    try {
-      if (typeof signOut === 'function') await signOut();
-    } finally {
-      navigate('/auth');
+    if (
+      pathname === '/dashboard' ||
+      pathname === '/closet'
+    ) {
+      return 'Closet';
+    }
+
+    if (pathname === '/visualize') {
+      return 'Visualizer';
+    }
+
+    if (pathname === '/upload') {
+      return 'Upload Item';
+    }
+
+    if (pathname === '/build-outfit') {
+      return 'Build Outfit';
+    }
+
+    if (pathname === '/chatbot') {
+      return 'Stylist AI';
+    }
+
+    return 'Closet';
+  };
+
+  const [activeLabel, setActiveLabel] = useState(
+    getActiveLabel
+  );
+
+  useEffect(() => {
+    setActiveLabel(getActiveLabel());
+  }, [location.pathname]);
+
+  /*
+    These positions are matched to the generated
+    almari-sidebar.png artwork.
+  */
+  const buttonPositions = [
+    {
+      label: 'Closet',
+      top: '28.7%',
+      height: '7.1%',
+    },
+    {
+      label: 'Visualizer',
+      top: '35.8%',
+      height: '7.1%',
+    },
+    {
+      label: 'Upload Item',
+      top: '42.9%',
+      height: '7.1%',
+    },
+    {
+      label: 'Build Outfit',
+      top: '50%',
+      height: '7.1%',
+    },
+    {
+      label: 'Stylist AI',
+      top: '57.1%',
+      height: '7.1%',
+    },
+  ];
+
+  // Everything routes through the parent's onNavigate — that's
+  // the single source of truth for what happens on a click (it
+  // already does navigate(navItem.route) or the action-based
+  // fallback). Sidebar itself doesn't decide navigation, it just
+  // reports the click and, on mobile, closes the drawer.
+  const handleSidebarClick = (navItem, position) => {
+    setActiveLabel(position.label);
+
+    onNavigate?.(navItem);
+
+    if (mobile && onClose) {
+      onClose();
     }
   };
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col bg-[#FBF3E7] border-r border-[#e6d5b8] relative select-none z-30">
-      <div className="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-b from-[#4a2f1c] via-[#3d2417] to-[#4a2f1c]">
-        <div className="absolute top-1/2 -translate-y-1/2 -right-2 w-4 h-16 rounded-full bg-gradient-to-b from-[#d4b16a] to-[#a9803f] shadow-md" />
-      </div>
-
-      <div className="pl-8 pr-5 pt-8 pb-6">
-        <div className="rounded-xl border-2 border-[#c9a769] bg-gradient-to-b from-[#4a2f1c] to-[#2b1810] px-4 py-4 text-center shadow-inner">
-          <p className="text-xs tracking-[0.3em] text-[#d4b16a] font-semibold">ALMARI</p>
-          <p className="text-xl tracking-[0.15em] text-[#f3e6cf] font-display font-bold mt-0.5">ADDA</p>
-        </div>
-      </div>
-
-      <nav className="flex-1 pl-8 pr-5 flex flex-col gap-1">
-        {NAV_ITEMS.map(({ label, icon: Icon, path }) => {
-          const active = location.pathname === path;
-          return (
-            <button
-              key={label}
-              onClick={() => navigate(path)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
-                active
-                  ? 'bg-[#7a2331]/10 text-[#7a2331]'
-                  : 'text-[#6b5645] hover:bg-[#f3e6cf] hover:text-[#3d2417]'
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              {label}
-            </button>
+    <div className="relative h-full w-full overflow-hidden bg-[#3b2113]">
+      {/* Sidebar artwork */}
+      <img
+        src="/almari-sidebar.png"
+        alt="Almari Adda sidebar"
+        className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none object-fill"
+        draggable={false}
+        onError={(event) => {
+          console.error(
+            'Sidebar image failed to load. Expected: public/almari-sidebar.png'
           );
-        })}
-      </nav>
 
-      <div className="px-5 pt-4 pb-6">
-        <div className="border-t border-[#e6d5b8] pt-4 flex items-center gap-2">
-          <button
-            onClick={() => navigate('/settings')}
-            className="flex items-center gap-2.5 flex-1 min-w-0 rounded-xl px-2 py-2 hover:bg-[#f3e6cf] transition-colors text-left"
-          >
-            <div className="w-8 h-8 rounded-full bg-[#7a2331] text-white flex items-center justify-center text-xs font-bold shrink-0">
-              {displayName[0]?.toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-[#3d2417] truncate">{displayName}</p>
-              <p className="text-[10px] text-[#a89478] truncate">{user?.email || 'View profile'}</p>
-            </div>
-          </button>
-          <button
-            onClick={handleLogout}
-            title="Log out"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#8a7360] hover:text-[#7a2331] hover:bg-[#f3e6cf] transition-colors shrink-0"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </aside>
+          event.currentTarget.style.display =
+            'none';
+        }}
+      />
+      {/* Decorative cover image */}
+      <img
+        src="/cover.png"
+        alt=""
+        className="absolute z-10 pointer-events-none select-none"
+        style={{
+          left: '15%',
+          top: '65%',
+          width: '180px',
+          height: 'auto',
+        }}
+      />
+
+      {/* Mobile close button */}
+      {mobile && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close sidebar"
+          className="absolute right-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full border border-[#d8b87a]/50 bg-[#2a140b]/80 text-[#f5e6cf] shadow-lg backdrop-blur transition hover:bg-[#4a2818]"
+        >
+          <X size={17} />
+        </button>
+      )}
+
+      {/* Functional menu buttons */}
+      <nav className="absolute inset-0 z-20">
+        {buttonPositions.map(
+          (position, index) => {
+            const navItem = navItems[index];
+
+            if (!navItem) {
+              return null;
+            }
+
+            const isActive =
+              activeLabel === position.label;
+
+            return (
+              <button
+                key={position.label}
+                type="button"
+                onClick={() =>
+                  handleSidebarClick(
+                    navItem,
+                    position
+                  )
+                }
+                aria-label={position.label}
+                aria-current={
+                  isActive ? 'page' : undefined
+                }
+                title={position.label}
+                className={`
+                group absolute left-[11.8%] w-[76.4%]
+                overflow-hidden rounded-[10px]
+                cursor-pointer
+                bg-transparent
+                border
+                transition-all duration-300
+                focus-visible:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-[#c99a55]
+                focus-visible:ring-offset-2
+                focus-visible:ring-offset-[#4a2918]
+                hover:brightness-[1.04]
+                active:scale-[0.99]
+                ${
+                  isActive
+                    ? `
+                      border-[#7A5536]
+                      border-[2px]
+                      brightness-[1.04]
+                      shadow-[0_0_0_1px_rgba(122,85,54,.45),0_0_16px_rgba(74,44,29,.35),inset_0_0_14px_rgba(255,255,255,.08)]
+                    `
+                    : `
+                      border-transparent
+                      hover:border-[#8B6444]
+                      hover:shadow-[0_0_10px_rgba(74,44,29,.20)]
+                    `
+                }
+              `}
+                style={{
+                  top: position.top,
+                  height: position.height,
+                }}
+              >
+
+
+                {/* Active left marker */}
+                {/* Active border */}
+                  <span
+                    className={`
+                      pointer-events-none
+                      absolute
+                      inset-0
+                      rounded-[10px]
+                      transition-opacity
+                      duration-300
+                      ${
+                        isActive
+                          ? 'opacity-100'
+                          : 'opacity-0'
+                      }
+                    `}
+                  >
+                    <span className="absolute left-0 top-[15%] bottom-[15%] w-[5px] rounded-r-full bg-gradient-to-b from-[#9C7350] via-[#6B4329] to-[#3F2618]" />
+
+                    <span className="absolute left-2 right-2 top-0 h-[2px] rounded-full bg-[#F4D48B] shadow-[0_0_8px_rgba(255,220,120,.9)]" />
+
+                    <span className="absolute left-2 right-2 bottom-0 h-[2px] rounded-full bg-[#F4D48B] shadow-[0_0_8px_rgba(255,220,120,.7)]" />
+                  </span>
+
+                {/* Hover sheen */}
+                <span className="pointer-events-none absolute inset-y-0 left-[-40%] w-[35%] skew-x-[-16deg] bg-white/8 opacity-0 transition-all duration-500 group-hover:left-[115%] group-hover:opacity-100" />
+              </button>
+            );
+          }
+        )}
+
+        {/* Drawer handle: sign out */}
+        <button
+          type="button"
+          onClick={onSignOut}
+          aria-label="Sign out"
+          title="Sign out"
+          className="
+            group absolute left-[27%] top-[83%]
+            h-[5.5%] w-[46%]
+            rounded-full bg-transparent
+            transition-all duration-200
+            hover:bg-[#d5aa6a]/12
+            focus-visible:outline-none
+            focus-visible:ring-2
+            focus-visible:ring-[#d5aa6a]
+          "
+        >
+          <span className="absolute left-1/2 top-1/2 rounded-full bg-[#d5aa6a]/20 px-3 py-1 font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f2dbb1] opacity-0 shadow-lg backdrop-blur-sm transition -translate-x-1/2 -translate-y-1/2 group-hover:opacity-100">
+            Sign out
+          </span>
+        </button>
+      </nav>
+    </div>
   );
 }
