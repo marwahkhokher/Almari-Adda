@@ -23,7 +23,13 @@ logger = logging.getLogger("worker")
 
 
 def process_upload_job(payload: dict) -> dict:
-    """Executes background segmentation, CLIP classification, and database storage for an uploaded photo."""
+    """
+    Runs segmentation + classification on an uploaded photo and stores
+    the resulting cutout in Supabase storage — but does NOT save it to
+    the `items` catalogue table. The item only becomes part of the
+    user's closet once they confirm via "Add to Almari", which calls
+    POST /catalogue with these detected fields.
+    """
     local_path = payload["temp_path"]
     filename = payload["filename"]
 
@@ -48,26 +54,6 @@ def process_upload_job(payload: dict) -> dict:
 
     image_url = supabase.storage.from_("clothing-images").get_public_url(storage_filename)
 
-    insert_result = (
-        supabase.table("items")
-        .insert({
-            "category": result["category"],
-            "subcategory": result["subcategory"],
-            "confidence": result["confidence"],
-            "image_url": image_url,
-            "created_at": datetime.now().isoformat(),
-        })
-        .execute()
-    )
-
-    created_item = insert_result.data[0]
-
-    supabase.table("item_metadata").insert({
-        "item_id": created_item["id"],
-        "color": detected_color,
-        "season": detected_season,
-    }).execute()
-
     if os.path.exists(local_path):
         try:
             os.remove(local_path)
@@ -75,7 +61,10 @@ def process_upload_job(payload: dict) -> dict:
             pass
 
     return {
-        "item": created_item,
+        "image_url": image_url,
+        "category": result["category"],
+        "subcategory": result["subcategory"],
+        "confidence": result["confidence"],
         "all_predictions": result["all_predictions"],
         "color": detected_color,
         "season": detected_season,

@@ -243,6 +243,68 @@ def delete_item(item_id: str):
     _catalogue_cache = None
     return {"status": "deleted", "id": item_id}
 
+@app.patch("/catalogue/{item_id}")
+def update_catalogue_item(item_id: str, updates: dict):
+    """
+    Updates fields on an existing catalogue item — used when the user
+    edits the auto-filled category/subcategory in UploadScreen, and
+    also by toggleFavorite() for the is_favorite flag. Invalidates the
+    catalogue cache so /catalogue reflects the change immediately.
+    """
+    global _catalogue_cache
+    allowed_fields = {"category", "subcategory", "is_favorite"}
+    update_data = {k: v for k, v in updates.items() if k in allowed_fields}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+
+    result = supabase.table("items").update(update_data).eq("id", item_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail=f"Item {item_id} not found")
+
+    _catalogue_cache = None
+    return result.data[0]
+
+
+@app.post("/catalogue")
+def create_catalogue_item(payload: dict):
+    """
+    Actually saves an analyzed item into the catalogue — this is the
+    point where an item becomes visible in /catalogue, not at
+    upload/analysis time. Called by "Add to Almari" once the user has
+    reviewed (and possibly edited) the auto-detected fields.
+    """
+    global _catalogue_cache
+
+    required = {"image_url", "category", "subcategory"}
+    missing = required - payload.keys()
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Missing fields: {', '.join(missing)}")
+
+    insert_result = (
+        supabase.table("items")
+        .insert({
+            "category": payload["category"],
+            "subcategory": payload["subcategory"],
+            "confidence": payload.get("confidence"),
+            "image_url": payload["image_url"],
+            "created_at": datetime.now().isoformat(),
+        })
+        .execute()
+    )
+    created_item = insert_result.data[0]
+
+    supabase.table("item_metadata").insert({
+        "item_id": created_item["id"],
+        "color": payload.get("color"),
+        "season": [payload["season"]] if isinstance(payload.get("season"), str) and payload.get("season") else payload.get("season") or [],
+    }).execute()
+
+    _catalogue_cache = None
+    return {"item": created_item}
+
+
+
+
 
 @app.post("/outfit-suggest")
 def outfit_suggest():

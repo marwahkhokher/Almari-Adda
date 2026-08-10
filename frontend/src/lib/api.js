@@ -182,6 +182,17 @@ export async function updateItemMetadata(itemId, metadata) {
 }
 
 
+// POST /catalogue — actually saves an analyzed item to the closet.
+// Only called once the user confirms via "Add to Almari" — analyzing
+// a photo (POST /upload) no longer saves it by itself.
+export async function createCatalogueItem(payload) {
+  return request("/catalogue", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 // POST /item-metadata/increment-worn
 
 // ============================================================

@@ -6,13 +6,17 @@ import {
   Camera, Lightbulb, Tag, Lock, Sparkles, AlertCircle, CheckCircle,
   CloudUpload, Home, Menu, User, Wand2,
 } from 'lucide-react';
+
 import {
   getCatalogue,
   uploadClothingItem,
-  getItemMetadata,
-  updateItemMetadata,
-  updateItemCategory,
+  createCatalogueItem,
+  pollJob,
 } from '../lib/api.js';
+
+
+
+
 import { useAuth } from '../contexts/AuthContext.jsx';
 import Sidebar from '../components/Sidebar2.jsx';
 import ProfileDrawer from './ProfileScreen.jsx';
@@ -88,7 +92,7 @@ const NAV_ITEMS = [
 function matchOption(raw, options) {
   if (!raw) return '';
   const found = options.find(opt => opt.toLowerCase() === String(raw).toLowerCase());
-  return found || raw;
+  return found || String(raw);
 }
 
 function resolveColorSwatch(label) {
@@ -174,7 +178,8 @@ const userName =
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [uploadedItemId, setUploadedItemId] = useState(null);
+  const [analyzedImageUrl, setAnalyzedImageUrl] = useState(null);
+  const [detectedConfidence, setDetectedConfidence] = useState(null);
   const [uploadError, setUploadError] = useState(null);
 
   const loadRecent = async () => {
@@ -200,6 +205,7 @@ const userName =
 
   const subcategoryOptions = category ? CATEGORY_OPTIONS[category.toLowerCase()] || [] : [];
 
+
   const handlePhotoSelect = async e => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -212,73 +218,71 @@ const userName =
     setUploadError(null);
     setIsAnalyzing(true);
     try {
-      const response = await uploadClothingItem(file);
-      const item = response?.item || {};
-      setUploadedItemId(item.id || null);
-      const detectedCategory = matchOption(item.category, Object.keys(CATEGORY_OPTIONS));
+      let response = await uploadClothingItem(file);
+
+      if (!response?.image_url && response?.job_id) {
+        response = await pollJob(response.job_id);
+      }
+      console.log('Upload response:', response);
+
+      setAnalyzedImageUrl(response?.image_url || null);
+      setDetectedConfidence(response?.confidence ?? null);
+
+      const detectedCategory = matchOption(response?.category, Object.keys(CATEGORY_OPTIONS));
       setCategory(detectedCategory);
       const subOptions = CATEGORY_OPTIONS[detectedCategory.toLowerCase()] || [];
-      setSubcategory(matchOption(item.subcategory, subOptions));
+      setSubcategory(matchOption(response?.subcategory, subOptions));
 
-      let detectedColor = response?.color || item.color || '';
-      let detectedSeason = Array.isArray(response?.season) ? response.season[0] : response?.season || item.season || '';
-
-      if (item.id) {
-        try {
-          const meta = await getItemMetadata(item.id);
-          if (!detectedColor) detectedColor = meta?.color || '';
-          if (!detectedSeason) detectedSeason = Array.isArray(meta?.season) ? meta.season[0] : meta?.season || '';
-        } catch (metaError) {
-          console.error('Failed to load item metadata', metaError);
-        }
-      }
-
-      setColor(matchOption(detectedColor, COLOR_OPTIONS.map(c => c.label)));
-      setSeason(matchOption(detectedSeason, SEASON_OPTIONS));
+      setColor(matchOption(response?.color, COLOR_OPTIONS.map(c => c.label)));
+      setSeason(matchOption(response?.season, SEASON_OPTIONS));
     } catch (error) {
       console.error('Failed to analyze item', error);
-      setUploadError(error.message || 'Failed to upload item. Please try again.');
+      setUploadError(error.message || 'Failed to analyze item. Please try again.');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   const handleCancel = () => {
-    // Note: the item is already saved server-side as soon as it's uploaded/analyzed.
-    // This just clears the form for a new upload — wire in a delete call here if you
-    // want "Cancel" to also remove the just-created item.
-    if (photoPreview) URL.revokeObjectURL(photoPreview);
-    setPhotoPreview(null);
-    setUploadedItemId(null);
-    setCategory('');
-    setSubcategory('');
-    setColor('');
-    setSeason('');
-    setIsAnalyzing(false);
-    setIsSuccess(false);
-    setUploadError(null);
-  };
+      // Nothing is saved to the catalogue until "Add to Almari" is clicked,
+      // so Cancel just clears the local form — no server-side item to clean up.
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      setPhotoPreview(null);
+      setAnalyzedImageUrl(null);
+      setDetectedConfidence(null);
+      setCategory('');
+      setSubcategory('');
+      setColor('');
+      setSeason('');
+      setIsAnalyzing(false);
+      setIsSuccess(false);
+      setUploadError(null);
+    };
 
   // Same reset as Cancel, used from the success screen's "Upload another item" button.
   const handleUploadAnother = () => handleCancel();
 
   const handleSubmit = async () => {
-    if (!photoPreview) return;
-    setIsSaving(true);
-    try {
-      if (uploadedItemId) {
-        await updateItemCategory(uploadedItemId, { category, subcategory });
-        await updateItemMetadata(uploadedItemId, { color, season });
+      if (!photoPreview || !analyzedImageUrl) return;
+      setIsSaving(true);
+      try {
+        await createCatalogueItem({
+          image_url: analyzedImageUrl,
+          category,
+          subcategory,
+          confidence: detectedConfidence,
+          color,
+          season,
+        });
+        await loadRecent();
+        setIsSuccess(true);
+      } catch (error) {
+        console.error('Failed to save item', error);
+        setUploadError(error.message || 'Failed to save item. Please try again.');
+      } finally {
+        setIsSaving(false);
       }
-      await loadRecent();
-      setIsSuccess(true);
-    } catch (error) {
-      console.error('Failed to save item', error);
-      setUploadError(error.message || 'Failed to save item. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    };
 
   const hasPhoto = Boolean(photoPreview);
 

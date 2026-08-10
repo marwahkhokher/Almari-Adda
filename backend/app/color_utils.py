@@ -234,28 +234,19 @@ def get_color_name(rgb):
     ):
         return "dark brown"
 
-    # --------------------------------------------------------
+# --------------------------------------------------------
     # RED / PINK
+    #
+    # The real difference between red and pink isn't brightness —
+    # a vivid red dress in good light has a high V just like pink
+    # does. The actual signal is SATURATION: pink is a red hue
+    # that's desaturated (pure pink ≈ s 0.25), while true red stays
+    # highly saturated (pure red = s 1.0). So saturated red is
+    # checked FIRST — a bright saturated red should never fall
+    # through to pink just because it's bright.
     # --------------------------------------------------------
 
-    # Pink:
-    # high value + moderate/high saturation + red/magenta hue
-    if (
-        (h >= 330 or h <= 15)
-        and s >= 0.20
-        and v >= 0.65
-    ):
-        return "pink"
-
-    # Also catch lighter pinks that drift toward magenta
-    if (
-        300 <= h < 360
-        and s >= 0.15
-        and v >= 0.60
-    ):
-        return "pink"
-
-    # Dark red
+    # Dark red: saturated red hue, low brightness
     if (
         (h >= 345 or h <= 10)
         and v < 0.45
@@ -263,12 +254,23 @@ def get_color_name(rgb):
     ):
         return "dark red"
 
-    # Regular red
+    # Regular red: saturated red hue, any brightness — checked
+    # before pink so vivid reds don't get miscategorized.
     if (
         (h >= 345 or h <= 15)
-        and s >= 0.35
+        and s >= 0.45
     ):
         return "red"
+
+    # Pink: red/magenta hue, but only moderately saturated (not
+    # vivid) and bright. True reds are already claimed above, so
+    # anything left here with lower saturation is genuinely pink.
+    if (
+        (h >= 330 or h <= 15)
+        and 0.15 <= s < 0.45
+        and v >= 0.65
+    ):
+        return "pink"
 
     # --------------------------------------------------------
     # ORANGE
