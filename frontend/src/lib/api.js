@@ -113,18 +113,6 @@ export async function toggleFavorite(itemId, isFavorite) {
   });
 }
 
-export async function incrementTimesWorn(itemIds) {
-  return request("/item-metadata/increment-worn", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      item_ids: itemIds,
-    }),
-  });
-}
-
 // ============================================================
 // Filters (colour / season / event)
 // ============================================================
@@ -339,4 +327,28 @@ export async function pollJob(jobId, onProgress = null, intervalMs = 1500, maxAt
     attempts++;
   }
   throw new ApiError("Job processing timed out", 408);
+}
+
+export async function incrementTimesWorn(itemIds) {
+  return request("/item-metadata/increment-worn", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      item_ids: itemIds,
+    }),
+  });
+}
+
+export async function incrementTimesWorn(itemIds) {
+  return request("/item-metadata/increment-worn", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      item_ids: itemIds,
+    }),
+  });
 }
